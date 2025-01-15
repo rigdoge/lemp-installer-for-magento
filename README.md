@@ -1,11 +1,11 @@
 # LEMP Stack Installer for Magento
 
-这是一个用于在Debian/Ubuntu系统上安装LEMP（Linux, Nginx, MySQL, PHP）环境的脚本集合，专门为Magento电商平台优化配置。
+这是一个用于在Debian/Ubuntu系统上准备LEMP（Linux, Nginx, MySQL, PHP）环境的脚本集合，专门为 Magento 2 电商平台优化配置。本工具仅负责环境配置，不包含 Magento 2 的安装过程。
 
 ## 功能特点
 
 - 自动安装和配置 Nginx、MySQL、PHP 8.2
-- 针对 Magento 优化的 Nginx 配置
+- 针对 Magento 2 优化的 Nginx 配置
 - MySQL 数据库自动配置
 - PHP-FPM 优化配置
 - 完整的错误处理和日志记录
@@ -16,7 +16,7 @@
 ## 系统要求
 
 - Debian 11+ 或 Ubuntu 22.04+
-- 至少 2GB RAM
+- 至少 2GB RAM（建议用于生产环境的服务器配置更高）
 - 至少 20GB 磁盘空间
 - root 访问权限
 
@@ -181,6 +181,7 @@ Nginx虚拟主机配置：
 4. 安装完成后请及时修改所有默认密码
 5. 定期运行安全检查和性能优化脚本
 6. 根据实际负载调整性能参数
+7. 本工具仅配置运行环境，Magento 2 需要单独安装
 
 ## 性能优化
 
