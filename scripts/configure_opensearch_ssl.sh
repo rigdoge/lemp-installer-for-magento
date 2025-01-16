@@ -51,7 +51,8 @@ fi
 
 # 创建内部用户配置目录
 CONFIG_DIR="/usr/local/opensearch/config"
-mkdir -p "$CONFIG_DIR"
+SECURITY_CONFIG_DIR="$CONFIG_DIR/opensearch-security"
+mkdir -p "$CONFIG_DIR" "$SECURITY_CONFIG_DIR"
 
 # 备份现有配置
 if [ -f "$CONFIG_DIR/opensearch.yml" ]; then
@@ -89,6 +90,12 @@ chmod 600 "$CERT_DIR"/*
 # 初始化安全插件
 log "Initializing security plugin..."
 SECURITY_TOOLS_DIR="/usr/local/opensearch/plugins/opensearch-security/tools"
+
+# 确保工具目录存在
+if [ ! -d "$SECURITY_TOOLS_DIR" ]; then
+    error "Security plugin tools directory not found at $SECURITY_TOOLS_DIR"
+fi
+
 cd "$SECURITY_TOOLS_DIR"
 
 # 确保 securityadmin.sh 有执行权限
@@ -139,11 +146,6 @@ EOF
 # 设置权限
 chown -R opensearch:opensearch "$CONFIG_DIR"
 chmod 600 "$CONFIG_DIR/opensearch.yml"
-
-# 创建安全配置目录
-log "Creating security configuration..."
-SECURITY_CONFIG_DIR="$CONFIG_DIR/opensearch-security"
-mkdir -p "$SECURITY_CONFIG_DIR"
 
 # 生成配置文件
 log "Generating configuration files..."
