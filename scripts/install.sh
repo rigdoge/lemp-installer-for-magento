@@ -818,18 +818,33 @@ if [ "$SKIP_OPENSEARCH" != "true" ]; then
             mv /usr/local/opensearch /usr/local/opensearch.bak.$(date +%Y%m%d_%H%M%S)
         fi
 
-        # 移动解压后的目录
+        # 移动解压后的目录并保留默认配置
+        log "Setting up OpenSearch..."
         mv opensearch-2.12.0 /usr/local/opensearch
         rm "${OPENSEARCH_PACKAGE}"
+
+        # 保存原始配置文件
+        if [ -f "/usr/local/opensearch/config/opensearch.yml.orig" ]; then
+            cp /usr/local/opensearch/config/opensearch.yml.orig /usr/local/opensearch/config/opensearch.yml.default
+        else
+            cp /usr/local/opensearch/config/opensearch.yml /usr/local/opensearch/config/opensearch.yml.default
+        fi
+
+        if [ -f "/usr/local/opensearch/config/jvm.options.orig" ]; then
+            cp /usr/local/opensearch/config/jvm.options.orig /usr/local/opensearch/config/jvm.options.default
+        else
+            cp /usr/local/opensearch/config/jvm.options /usr/local/opensearch/config/jvm.options.default
+        fi
 
         # 创建 OpenSearch 用户和组
         log "Creating OpenSearch user and group..."
         useradd -r -s /sbin/nologin opensearch || true
         chown -R opensearch:opensearch /usr/local/opensearch
 
-        # 创建数据和日志目录
-        mkdir -p /var/lib/opensearch /var/log/opensearch
-        chown -R opensearch:opensearch /var/lib/opensearch /var/log/opensearch
+        # 设置系统参数（安装时设置）
+        log "Setting system parameters..."
+        echo "vm.max_map_count = 262144" >> /etc/sysctl.conf
+        sysctl -p  # 立即应用参数
 
         # 设置系统限制
         log "Setting system limits..."
@@ -840,22 +855,46 @@ opensearch soft nproc 4096
 opensearch hard nproc 4096
 EOF
 
-        # 设置系统参数
-        log "Setting system parameters..."
-        # 在 sysctl.conf 中直接设置参数，确保在启动时加载
-        echo "vm.max_map_count = 262144" >> /etc/sysctl.conf
-        
+        # 创建必要的目录
+        mkdir -p /var/lib/opensearch /var/log/opensearch
+        chown -R opensearch:opensearch /var/lib/opensearch /var/log/opensearch
+
         # 配置 OpenSearch
         log "Configuring OpenSearch..."
         cat > /usr/local/opensearch/config/opensearch.yml <<EOF
+# 集群设置
 cluster.name: magento-cluster
 node.name: node-1
+node.roles: [ data, master, ingest ]
+
+# 路径设置
 path.data: /var/lib/opensearch
 path.logs: /var/log/opensearch
+
+# 网络设置
 network.host: 127.0.0.1
 http.port: 9200
+transport.port: 9300
+
+# 集群设置
 discovery.type: single-node
+
+# 内存设置
 bootstrap.memory_lock: true
+
+# 索引设置
+action.auto_create_index: +*
+
+# 线程池设置
+thread_pool:
+  write:
+    queue_size: 1000
+  search:
+    queue_size: 1000
+
+# 缓存设置
+indices.queries.cache.size: 25%
+indices.memory.index_buffer_size: 30%
 
 # 禁用安全插件
 plugins.security.disabled: true
@@ -869,38 +908,44 @@ EOF
         log "Configuring JVM options..."
         cat > /usr/local/opensearch/config/jvm.options <<EOF
 ################################################################
-## IMPORTANT: JVM heap size
+## IMPORTANT: JVM heap size - 根据系统内存调整
 ################################################################
--Xms512m
--Xmx512m
+-Xms1g
+-Xmx1g
 
 ################################################################
-## Expert settings
+## GC 设置 - 针对 Magento 2 的搜索负载优化
 ################################################################
 -XX:+UseG1GC
 -XX:G1ReservePercent=25
 -XX:InitiatingHeapOccupancyPercent=30
+-XX:SoftRefLRUPolicyMSPerMB=1000
+-XX:G1HeapRegionSize=32m
 
-## Basic
+## 基础优化
 -XX:+UseCompressedOops
 -XX:+AlwaysPreTouch
+-XX:MaxDirectMemorySize=512m
 
-## Debug
+## GC 日志
+-Xlog:gc*,gc+age=trace,safepoint:file=/var/log/opensearch/gc.log:utctime,pid,tags:filecount=32,filesize=64m
+
+## 性能优化
+-XX:+OptimizeStringConcat
+-XX:+UseFastAccessorMethods
+
+## 调试设置
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/var/log/opensearch
-
-## GC logging
-8-13:-Xlog:gc*,gc+age=trace,safepoint:file=/var/log/opensearch/gc.log:utctime,pid,tags:filecount=32,filesize=64m
 EOF
 
-        # 检查 JDK 权限
-        log "Checking JDK permissions..."
+        # 检查和设置权限
+        log "Setting up permissions..."
         chmod +x /usr/local/opensearch/jdk/bin/java
         chmod +x /usr/local/opensearch/jdk/bin/*
-
-        # 检查启动脚本权限
         chmod +x /usr/local/opensearch/bin/opensearch
         chmod +x /usr/local/opensearch/bin/opensearch-env
+        chown -R opensearch:opensearch /usr/local/opensearch
 
         # 创建系统服务
         log "Creating OpenSearch service..."
@@ -910,7 +955,6 @@ Description=OpenSearch
 Documentation=https://opensearch.org/docs/
 Wants=network-online.target
 After=network-online.target
-StartLimitIntervalSec=0
 
 [Service]
 Type=notify
@@ -924,21 +968,16 @@ Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
 User=opensearch
 Group=opensearch
 
-# 确保在启动前设置系统参数
-ExecStartPre=/bin/sh -c 'sysctl -w vm.max_map_count=262144'
-ExecStartPre=/bin/sh -c 'ulimit -n 65535'
-ExecStartPre=/bin/sh -c 'mkdir -p /var/log/opensearch && chown opensearch:opensearch /var/log/opensearch'
-ExecStartPre=/bin/sh -c 'mkdir -p /var/lib/opensearch && chown opensearch:opensearch /var/lib/opensearch'
 ExecStart=/usr/local/opensearch/bin/opensearch
 
-# Specifies the maximum file descriptor number
+# 系统限制设置
 LimitNOFILE=65535
 LimitNPROC=4096
 LimitAS=infinity
 LimitFSIZE=infinity
 LimitMEMLOCK=infinity
 
-# 增加启动超时时间
+# 超时设置
 TimeoutStartSec=300
 TimeoutStopSec=300
 
