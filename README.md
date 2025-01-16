@@ -194,6 +194,32 @@ Nginx虚拟主机配置：
 - db_user: 数据库用户名
 - db_password: 数据库密码
 
+### 配置 OpenSearch 认证
+
+如果需要为 OpenSearch 启用 HTTP 基本认证，可以使用以下命令：
+
+```bash
+sudo ./scripts/configure_opensearch_ssl.sh <username> <password>
+```
+
+该脚本会：
+1. 创建指定的用户账号和密码
+2. 配置 OpenSearch 的安全设置
+3. 重启 OpenSearch 服务
+
+配置完成后，可以使用以下命令测试：
+```bash
+curl -X GET "http://localhost:9200/_cat/nodes?v" -u "username:password"
+```
+
+注意：配置完成后，需要在 Magento 管理后台更新 OpenSearch 连接信息：
+1. 进入 Stores > Configuration > Catalog > Catalog > Catalog Search
+2. 在 OpenSearch Server Hostname 中填入 localhost
+3. 在 OpenSearch Server Port 中填入 9200
+4. 启用 Enable OpenSearch HTTP Auth
+5. 填入配置的用户名和密码
+6. 保存配置并清除缓存
+
 ### 配置 OpenSearch SSL
 
 如果需要为 OpenSearch 启用加密访问，可以使用以下命令：
