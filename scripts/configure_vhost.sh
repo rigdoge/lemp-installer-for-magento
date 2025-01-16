@@ -190,9 +190,9 @@ tail -n 20 /var/log/nginx/$DOMAIN.error.log || true
 # 检查 systemd 日志
 log "Checking systemd service logs..."
 echo "PHP-FPM service status:"
-systemctl status php8.2-fpm || true
+systemctl status --no-pager php8.2-fpm || true
 echo "Nginx service status:"
-systemctl status nginx || true
+systemctl status --no-pager nginx || true
 
 log "Configuration completed. Please check http://$DOMAIN"
 log "If you still see 502 Bad Gateway, please check the logs above for errors." 
