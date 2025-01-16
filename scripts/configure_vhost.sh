@@ -66,11 +66,11 @@ usermod -a -G www-data "$MAGENTO_OWNER"
 log "Configuring PHP-FPM pool..."
 PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
 
-# 不再禁用默认的 www 池
-# if [ -f "/etc/php/8.2/fpm/pool.d/www.conf" ]; then
-#     log "Disabling default PHP-FPM pool..."
-#     mv /etc/php/8.2/fpm/pool.d/www.conf /etc/php/8.2/fpm/pool.d/www.conf.disabled
-# fi
+# 确保配置目录存在并有正确的权限
+log "Setting up PHP-FPM configuration directory..."
+mkdir -p /etc/php/8.2/fpm/pool.d
+chown root:root /etc/php/8.2/fpm/pool.d
+chmod 755 /etc/php/8.2/fpm/pool.d
 
 cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
@@ -81,10 +81,11 @@ listen.owner = www-data
 listen.group = www-data
 listen.mode = 0660
 
-pm = ondemand
+pm = dynamic
 pm.max_children = 50
-pm.process_idle_timeout = 10s
-pm.max_requests = 500
+pm.start_servers = 5
+pm.min_spare_servers = 5
+pm.max_spare_servers = 35
 
 php_value[memory_limit] = 756M
 php_value[max_execution_time] = 18000
@@ -97,6 +98,11 @@ php_flag[log_errors] = on
 security.limit_extensions = .php
 EOF
 
+# 设置配置文件权限
+log "Setting PHP-FPM configuration file permissions..."
+chown root:root "$PHP_FPM_POOL_CONF"
+chmod 644 "$PHP_FPM_POOL_CONF"
+
 # 创建 PHP-FPM 日志目录
 log "Creating PHP-FPM log directory..."
 mkdir -p /var/log/php-fpm
@@ -108,6 +114,13 @@ log "Creating PHP-FPM socket directory..."
 mkdir -p /run/php
 chown www-data:www-data /run/php
 chmod 755 /run/php
+
+# 添加调试信息
+log "PHP-FPM Configuration:"
+log "Pool directory contents:"
+ls -la /etc/php/8.2/fpm/pool.d/
+log "Pool configuration:"
+cat "$PHP_FPM_POOL_CONF"
 
 # 创建必要的目录
 log "Creating Nginx configuration directories..."
