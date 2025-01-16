@@ -153,6 +153,28 @@ Fail2ban 默认配置：
 - ModSecurity：应用层防火墙，防御 Web 攻击
 - Fail2ban：网络层防御，防止暴力破解
 
+### SSL配置
+
+要为网站配置SSL证书，请运行以下命令：
+
+```bash
+sudo ./scripts/configure_ssl.sh <domain>
+```
+
+参数说明：
+- `domain`: 网站域名（例如：magento.example.com）
+
+该脚本会：
+1. 安装certbot（如果尚未安装）
+2. 为指定域名申请并安装SSL证书
+3. 配置自动续期
+4. 测试证书续期流程
+
+注意：在运行此脚本之前，请确保：
+- 域名已正确解析到服务器IP
+- 网站已经可以通过HTTP访问
+- 80和443端口已开放
+
 ### 参数说明
 
 MariaDB配置：
@@ -187,7 +209,9 @@ Nginx虚拟主机配置：
 │   ├── remove_vhost.sh      # Nginx虚拟主机删除脚本
 │   ├── backup.sh           # 备份脚本
 │   ├── security_check.sh   # 安全检查脚本
-│   └── optimize.sh         # 性能优化脚本
+│   ├── optimize.sh         # 性能优化脚本
+│   ├── configure_ssl.sh      # SSL证书配置脚本
+│   └── modsecurity.sh      # ModSecurity脚本
 ├── templates/     # 配置模板
 ├── tests/         # 测试文件
 └── tools/         # 工具脚本
