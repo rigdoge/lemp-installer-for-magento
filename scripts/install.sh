@@ -1018,6 +1018,11 @@ EOF
         log "Applying system parameters..."
         sysctl -w vm.max_map_count=262144
 
+        # 启动 OpenSearch 服务
+        log "Starting OpenSearch service..."
+        systemctl enable opensearch
+        systemctl start opensearch
+
         # 等待服务启动并检查状态
         log "Waiting for OpenSearch to start..."
         max_attempts=30
