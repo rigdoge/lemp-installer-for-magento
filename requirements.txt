@@ -11,6 +11,9 @@ composer==2.7.1
 # Security Components (Latest versions allowed)
 fail2ban==latest
 certbot==latest
+modsecurity==latest
+libapache2-mod-security2==latest
+modsecurity-crs==latest
 
 # Database Management (Latest versions allowed)
 phpmyadmin==latest

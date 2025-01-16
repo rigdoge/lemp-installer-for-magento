@@ -154,6 +154,51 @@ apt-get install -y memcached php8.2-memcached || error "Failed to install Memcac
 log "Installing Webmin..."
 apt-get install -y webmin || error "Failed to install Webmin"
 
+# Security Components (Latest)
+log "Installing security components..."
+apt-get install -y fail2ban || error "Failed to install Fail2ban"
+apt-get install -y certbot || error "Failed to install Certbot"
+apt-get install -y nginx-module-modsecurity modsecurity-crs || error "Failed to install ModSecurity"
+
+# Configure ModSecurity
+log "Configuring ModSecurity..."
+mkdir -p /etc/nginx/modsec
+cp /etc/modsecurity/modsecurity.conf-recommended /etc/nginx/modsec/modsecurity.conf
+sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsec/modsecurity.conf
+cp -R /usr/share/modsecurity-crs/rules /etc/nginx/modsec/
+cat > /etc/nginx/modsec/main.conf <<EOF
+Include /etc/nginx/modsec/modsecurity.conf
+Include /etc/nginx/modsec/rules/*.conf
+EOF
+
+# Configure Fail2ban
+log "Configuring Fail2ban..."
+cat > /etc/fail2ban/jail.local <<EOF
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 5
+
+[sshd]
+enabled = true
+maxretry = 3
+
+[nginx-http-auth]
+enabled = true
+
+[nginx-botsearch]
+enabled = true
+
+[nginx-badbots]
+enabled = true
+
+[nginx-noscript]
+enabled = true
+
+[nginx-req-limit]
+enabled = true
+EOF
+
 # 启动服务
 log "Starting services..."
 systemctl start nginx
@@ -170,6 +215,8 @@ systemctl start varnish
 systemctl enable varnish
 systemctl start memcached
 systemctl enable memcached
+systemctl start fail2ban
+systemctl enable fail2ban
 
 log "Installation completed successfully!"
 log "Installed versions:"
@@ -184,3 +231,5 @@ echo "OpenSearch 2.12.0"
 dpkg -l | grep phpmyadmin | awk '{print "phpMyAdmin " $3}'
 memcached -h | head -n1
 dpkg -l | grep webmin | awk '{print "Webmin " $3}'
+dpkg -l | grep fail2ban | awk '{print "Fail2ban " $3}'
+dpkg -l | grep modsecurity | awk '{print "ModSecurity " $3}'
