@@ -187,6 +187,10 @@ EOF
 
 # 生成内部用户配置
 log "Generating internal users configuration..."
+# 生成密码哈希
+ADMIN_HASH=$(echo -n "admin" | openssl dgst -sha512 | awk '{print $2}')
+USER_HASH=$(echo -n "$PASSWORD" | openssl dgst -sha512 | awk '{print $2}')
+
 cat > "$SECURITY_CONFIG_DIR/internal_users.yml" <<EOF
 _meta:
   type: "internalusers"
@@ -194,19 +198,19 @@ _meta:
 
 # 默认管理员用户
 admin:
-  hash: "\$2a\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  hash: "$ADMIN_HASH"
   reserved: true
   backend_roles:
   - "admin"
   description: "Admin user"
 
-# 新用户
+# Magento 用户
 $USERNAME:
-  hash: "\$2a\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  hash: "$USER_HASH"
   reserved: false
   backend_roles:
   - "admin"
-  description: "Custom admin user"
+  description: "Magento admin user"
 EOF
 
 # 生成角色配置
@@ -232,6 +236,22 @@ admin_role:
     - "*"
     allowed_actions:
     - "unlimited"
+
+# Magento 角色
+magento_role:
+  reserved: false
+  hidden: false
+  cluster_permissions:
+  - "cluster:monitor/main"
+  - "cluster:monitor/health"
+  index_permissions:
+  - index_patterns:
+    - "magento*"
+    allowed_actions:
+    - "read"
+    - "write"
+    - "delete"
+    - "create_index"
 EOF
 
 # 生成角色映射配置
@@ -250,6 +270,16 @@ admin_role:
   hosts: []
   users:
   - "admin"
+  - "$USERNAME"
+
+# Magento 角色映射
+magento_role:
+  reserved: false
+  hidden: false
+  backend_roles:
+  - "admin"
+  hosts: []
+  users:
   - "$USERNAME"
 EOF
 
@@ -317,6 +347,7 @@ curl -X PUT "http://localhost:9200/_plugins/_security/api/internalusers/$USERNAM
     -d "{
   \"password\": \"$PASSWORD\",
   \"backend_roles\": [\"admin\"],
+  \"opendistro_security_roles\": [\"admin_role\", \"magento_role\"],
   \"attributes\": {}
 }"
 
