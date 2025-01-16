@@ -32,14 +32,15 @@ if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root"
 fi
 
-# 获取脚本所在目录的绝对路径
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+# 检查 Magento 根目录是否存在
+if [ ! -d "$MAGENTO_ROOT" ]; then
+    error "Magento root directory not found: $MAGENTO_ROOT"
+fi
 
-# 检查模板文件是否存在
-TEMPLATE_FILE="$PROJECT_ROOT/templates/magento.conf.template"
-if [ ! -f "$TEMPLATE_FILE" ]; then
-    error "Template file not found: $TEMPLATE_FILE"
+# 检查 Magento 的 Nginx 配置示例文件是否存在
+MAGENTO_NGINX_CONF="$MAGENTO_ROOT/nginx.conf.sample"
+if [ ! -f "$MAGENTO_NGINX_CONF" ]; then
+    error "Magento Nginx configuration sample not found: $MAGENTO_NGINX_CONF"
 fi
 
 # 创建必要的目录
@@ -57,11 +58,24 @@ fi
 log "Creating Nginx configuration for $DOMAIN..."
 CONF_FILE="/etc/nginx/sites-available/$DOMAIN.conf"
 
-# 复制并替换模板中的变量
-cp "$TEMPLATE_FILE" "$CONF_FILE"
-sed -i "s|{{DOMAIN}}|$DOMAIN|g" "$CONF_FILE"
-sed -i "s|{{MAGENTO_ROOT}}|$MAGENTO_ROOT|g" "$CONF_FILE"
-sed -i "s|{{MAGENTO_MODE}}|$MAGENTO_MODE|g" "$CONF_FILE"
+# 创建基本的服务器配置
+cat > "$CONF_FILE" <<EOF
+upstream fastcgi_backend {
+    server unix:/run/php/php8.2-fpm.sock;
+}
+
+server {
+    listen 80;
+    server_name $DOMAIN;
+    set \$MAGE_ROOT $MAGENTO_ROOT;
+    set \$MAGE_MODE $MAGENTO_MODE;
+    
+    access_log /var/log/nginx/$DOMAIN.access.log;
+    error_log /var/log/nginx/$DOMAIN.error.log;
+
+    include $MAGENTO_ROOT/nginx.conf.sample;
+}
+EOF
 
 # 创建符号链接
 if [ ! -f "/etc/nginx/sites-enabled/$DOMAIN.conf" ]; then
