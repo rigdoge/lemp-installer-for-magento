@@ -12,6 +12,15 @@ composer==2.7.1
 fail2ban==latest
 certbot==latest
 
+# Database Management (Latest versions allowed)
+phpmyadmin==latest
+
+# Cache & Performance (Latest versions allowed)
+memcached==latest
+
+# System Management (Latest versions allowed)
+webmin==latest
+
 # Additional Components (Latest versions allowed)
 ufw==latest
 curl==latest

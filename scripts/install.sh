@@ -77,6 +77,10 @@ echo "deb [signed-by=/usr/share/keyrings/rabbitmq.9F4587F226208342.gpg] https://
 # Varnish 7.5 Repository
 curl -s https://packagecloud.io/install/repositories/varnishcache/varnish75/script.deb.sh | bash
 
+# Webmin Repository
+curl -fsSL http://www.webmin.com/jcameron-key.asc | gpg --dearmor -o /usr/share/keyrings/webmin-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/webmin-archive-keyring.gpg] http://download.webmin.com/download/repository sarge contrib" > /etc/apt/sources.list.d/webmin.list
+
 # 更新包列表
 apt-get update
 
@@ -138,6 +142,18 @@ fi
 php composer-setup.php --version=2.7.1 --install-dir=/usr/local/bin --filename=composer
 rm composer-setup.php
 
+# phpMyAdmin (Latest)
+log "Installing phpMyAdmin..."
+DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin || error "Failed to install phpMyAdmin"
+
+# Memcached (Latest)
+log "Installing Memcached..."
+apt-get install -y memcached php8.2-memcached || error "Failed to install Memcached"
+
+# Webmin (Latest)
+log "Installing Webmin..."
+apt-get install -y webmin || error "Failed to install Webmin"
+
 # 启动服务
 log "Starting services..."
 systemctl start nginx
@@ -152,6 +168,8 @@ systemctl start rabbitmq-server
 systemctl enable rabbitmq-server
 systemctl start varnish
 systemctl enable varnish
+systemctl start memcached
+systemctl enable memcached
 
 log "Installation completed successfully!"
 log "Installed versions:"
@@ -163,3 +181,6 @@ rabbitmqctl version
 varnishd -V
 composer --version
 echo "OpenSearch 2.12.0"
+dpkg -l | grep phpmyadmin | awk '{print "phpMyAdmin " $3}'
+memcached -h | head -n1
+dpkg -l | grep webmin | awk '{print "Webmin " $3}'
