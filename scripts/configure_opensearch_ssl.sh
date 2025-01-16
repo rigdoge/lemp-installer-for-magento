@@ -75,6 +75,30 @@ if ! systemctl is-active --quiet opensearch; then
     error "OpenSearch is not running. Please install and start OpenSearch first."
 fi
 
+# 停止 OpenSearch 服务
+log "Stopping OpenSearch service..."
+systemctl stop opensearch
+
+# 清理旧的配置和证书
+log "Cleaning up old configurations and certificates..."
+# 删除安全配置目录
+if [ -d "/usr/local/opensearch/config/opensearch-security" ]; then
+    rm -rf "/usr/local/opensearch/config/opensearch-security"
+    log "Removed old security configuration directory"
+fi
+
+# 删除证书目录
+if [ -d "/usr/local/opensearch/config/certificates" ]; then
+    rm -rf "/usr/local/opensearch/config/certificates"
+    log "Removed old certificates directory"
+fi
+
+# 删除主配置文件
+if [ -f "/usr/local/opensearch/config/opensearch.yml" ]; then
+    rm -f "/usr/local/opensearch/config/opensearch.yml"
+    log "Removed old opensearch.yml configuration"
+fi
+
 # 清理旧的证书和配置
 log "Cleaning up old SSL certificates and configuration..."
 CERT_DIR="/usr/local/opensearch/config/certificates"
