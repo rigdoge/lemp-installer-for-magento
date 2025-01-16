@@ -41,9 +41,23 @@ if ! systemctl is-active --quiet opensearch; then
     error "OpenSearch is not running. Please install and start OpenSearch first."
 fi
 
+# 清理旧的证书和配置
+log "Cleaning up old SSL certificates and configuration..."
+CERT_DIR="/usr/local/opensearch/config/certificates"
+if [ -d "$CERT_DIR" ]; then
+    rm -rf "$CERT_DIR"
+    log "Removed old certificates directory"
+fi
+
 # 创建内部用户配置目录
 CONFIG_DIR="/usr/local/opensearch/config"
 mkdir -p "$CONFIG_DIR"
+
+# 备份现有配置
+if [ -f "$CONFIG_DIR/opensearch.yml" ]; then
+    cp "$CONFIG_DIR/opensearch.yml" "$CONFIG_DIR/opensearch.yml.bak"
+    log "Backed up existing OpenSearch configuration"
+fi
 
 # 生成内部用户配置文件
 log "Generating internal users configuration..."
@@ -101,9 +115,24 @@ chmod 600 "$CONFIG_DIR/opensearch.yml"
 log "Restarting OpenSearch..."
 systemctl restart opensearch
 
-# 等待服务启动
+# 等待服务启动并检查状态
 log "Waiting for OpenSearch to start..."
-sleep 30
+for i in {1..30}; do
+    if curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+        break
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
+
+# 检查服务状态
+if ! curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+    warn "OpenSearch is not responding. Checking service status..."
+    systemctl status opensearch
+    journalctl -xeu opensearch
+    error "Failed to start OpenSearch. Please check the logs."
+fi
 
 # 测试连接
 log "Testing connection..."
