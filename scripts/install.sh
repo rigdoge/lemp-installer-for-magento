@@ -44,34 +44,36 @@ if [[ ! -f /etc/debian_version ]]; then
     error "This script only works on Debian/Ubuntu systems"
 fi
 
-# 检查必要的工具
-log "Checking required tools..."
-command -v curl >/dev/null 2>&1 || { log "Installing curl..."; apt-get install -y curl; }
-command -v wget >/dev/null 2>&1 || { log "Installing wget..."; apt-get install -y wget; }
-
-# 更新系统包
+# 检查和更新系统
 log "Updating system packages..."
 apt-get update || error "Failed to update system packages"
 apt-get upgrade -y || error "Failed to upgrade system packages"
 
-# 添加必要的软件源
+# 第1阶段：安装基础工具
+log "Stage 1: Installing basic tools..."
+apt-get install -y curl wget git unzip net-tools || error "Failed to install basic tools"
+
+# 添加所有必要的软件源
 log "Adding required repositories..."
 
-# Nginx Repository
-log "Adding Nginx official repository..."
-curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian $(lsb_release -cs) nginx" > /etc/apt/sources.list.d/nginx.list
-
 # MySQL 8.0 Repository
+log "Adding MySQL repository..."
 wget https://dev.mysql.com/get/mysql-apt-config_0.8.29-1_all.deb
 DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.29-1_all.deb
 rm mysql-apt-config_0.8.29-1_all.deb
 
-# Redis 7.2 Repository
+# Nginx Repository
+log "Adding Nginx repository..."
+curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian $(lsb_release -cs) nginx" > /etc/apt/sources.list.d/nginx.list
+
+# Redis Repository
+log "Adding Redis repository..."
 curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" > /etc/apt/sources.list.d/redis.list
 
-# RabbitMQ 3.13 Repository
+# RabbitMQ Repository
+log "Adding RabbitMQ repository..."
 curl -1sLf "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | gpg --dearmor > /usr/share/keyrings/com.rabbitmq.team.gpg
 curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg
 curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.9F4587F226208342.gpg
@@ -79,29 +81,26 @@ curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F
 echo "deb [signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/debian bullseye main" > /etc/apt/sources.list.d/rabbitmq-erlang.list
 echo "deb [signed-by=/usr/share/keyrings/rabbitmq.9F4587F226208342.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/debian bullseye main" > /etc/apt/sources.list.d/rabbitmq-server.list
 
-# Varnish 7.5 Repository
+# Varnish Repository
+log "Adding Varnish repository..."
 curl -s https://packagecloud.io/install/repositories/varnishcache/varnish75/script.deb.sh | bash
 
 # Webmin Repository
+log "Adding Webmin repository..."
 curl -fsSL http://www.webmin.com/jcameron-key.asc | gpg --dearmor -o /usr/share/keyrings/webmin-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/webmin-archive-keyring.gpg] http://download.webmin.com/download/repository sarge contrib" > /etc/apt/sources.list.d/webmin.list
 
 # 更新包列表
 apt-get update
 
-# 安装指定版本的软件包
-log "Installing specified versions of required packages..."
-
-# Nginx 1.24
-log "Installing Nginx 1.24..."
-apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
-
-# MySQL 8.0
-log "Installing MySQL 8.0..."
+# 第2阶段：安装数据库
+log "Stage 2: Installing MySQL..."
 apt-get install -y mysql-server=8.0.* || error "Failed to install MySQL 8.0"
+systemctl start mysql
+systemctl enable mysql
 
-# PHP 8.2
-log "Installing PHP 8.2 and extensions..."
+# 第3阶段：安装PHP和扩展
+log "Stage 3: Installing PHP and extensions..."
 apt-get install -y php8.2-fpm \
     php8.2-cli \
     php8.2-common \
@@ -115,27 +114,49 @@ apt-get install -y php8.2-fpm \
     php8.2-intl \
     php8.2-soap \
     php8.2-xsl || error "Failed to install PHP and extensions"
+systemctl start php8.2-fpm
+systemctl enable php8.2-fpm
 
-# Redis 7.2
-log "Installing Redis 7.2..."
+# 第4阶段：安装Web服务器
+log "Stage 4: Installing Nginx..."
+apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
+systemctl start nginx
+systemctl enable nginx
+
+# 第5阶段：安装缓存和消息队列
+log "Stage 5: Installing caching and message queue services..."
+# Redis
 apt-get install -y redis-server=7:7.2.* || error "Failed to install Redis 7.2"
+systemctl start redis-server
+systemctl enable redis-server
 
-# RabbitMQ 3.13
-log "Installing RabbitMQ 3.13..."
+# Memcached
+apt-get install -y memcached php8.2-memcached || error "Failed to install Memcached"
+systemctl start memcached
+systemctl enable memcached
+
+# RabbitMQ
 apt-get install -y rabbitmq-server=3.13.* || error "Failed to install RabbitMQ 3.13"
+systemctl start rabbitmq-server
+systemctl enable rabbitmq-server
 
-# Varnish 7.5
-log "Installing Varnish 7.5..."
+# 第6阶段：安装性能优化工具
+log "Stage 6: Installing performance optimization tools..."
+# Varnish
 apt-get install -y varnish=7.5.* || error "Failed to install Varnish 7.5"
+systemctl start varnish
+systemctl enable varnish
 
-# OpenSearch 2.12
+# OpenSearch
 log "Installing OpenSearch 2.12..."
 wget https://artifacts.opensearch.org/releases/bundle/opensearch/2.12.0/opensearch-2.12.0-linux-x64.tar.gz
 tar -xzf opensearch-2.12.0-linux-x64.tar.gz
 mv opensearch-2.12.0 /usr/local/opensearch
 rm opensearch-2.12.0-linux-x64.tar.gz
 
-# Composer 2.7
+# 第7阶段：安装管理工具
+log "Stage 7: Installing management tools..."
+# Composer
 log "Installing Composer 2.7..."
 EXPECTED_CHECKSUM="$(php -r 'copy("https://composer.github.io/installer.sig", "php://stdout");')"
 php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
@@ -147,25 +168,15 @@ fi
 php composer-setup.php --version=2.7.1 --install-dir=/usr/local/bin --filename=composer
 rm composer-setup.php
 
-# phpMyAdmin (Latest)
-log "Installing phpMyAdmin..."
+# phpMyAdmin
 DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin || error "Failed to install phpMyAdmin"
 
-# Memcached (Latest)
-log "Installing Memcached..."
-apt-get install -y memcached php8.2-memcached || error "Failed to install Memcached"
-
-# Webmin (Latest)
-log "Installing Webmin..."
+# Webmin
 apt-get install -y webmin || error "Failed to install Webmin"
 
-# Security Components (Latest)
-log "Installing security components..."
-apt-get install -y fail2ban || error "Failed to install Fail2ban"
-apt-get install -y certbot python3-certbot-nginx || error "Failed to install Certbot"
-
-# Install ModSecurity for Nginx
-log "Installing ModSecurity for Nginx..."
+# 第8阶段：安装安全组件
+log "Stage 8: Installing security components..."
+# ModSecurity
 apt-get install -y nginx-module-modsecurity modsecurity-crs || error "Failed to install ModSecurity for Nginx"
 
 # Configure ModSecurity
@@ -200,8 +211,12 @@ modsecurity on;
 modsecurity_rules_file /etc/nginx/modsec/main.conf;
 EOF
 
+# Fail2ban
+apt-get install -y fail2ban || error "Failed to install Fail2ban"
+systemctl start fail2ban
+systemctl enable fail2ban
+
 # Configure Fail2ban
-log "Configuring Fail2ban..."
 cat > /etc/fail2ban/jail.local <<EOF
 [DEFAULT]
 bantime = 3600
@@ -228,25 +243,10 @@ enabled = true
 enabled = true
 EOF
 
-# 启动服务
-log "Starting services..."
-systemctl start nginx
-systemctl enable nginx
-systemctl start mysql
-systemctl enable mysql
-systemctl start php8.2-fpm
-systemctl enable php8.2-fpm
-systemctl start redis-server
-systemctl enable redis-server
-systemctl start rabbitmq-server
-systemctl enable rabbitmq-server
-systemctl start varnish
-systemctl enable varnish
-systemctl start memcached
-systemctl enable memcached
-systemctl start fail2ban
-systemctl enable fail2ban
+# Certbot
+apt-get install -y certbot python3-certbot-nginx || error "Failed to install Certbot"
 
+# 输出安装版本信息
 log "Installation completed successfully!"
 log "Installed versions:"
 nginx -v
