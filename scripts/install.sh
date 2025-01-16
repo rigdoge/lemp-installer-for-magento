@@ -118,7 +118,8 @@ else
     
     # 添加 MariaDB 仓库
     log "Adding MariaDB repository..."
-    curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup | bash -s -- --mariadb-server-version="10.6"
+    curl -LsS https://mariadb.org/mariadb_release_signing_key.asc | gpg --dearmor > /usr/share/keyrings/mariadb-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/mariadb-keyring.gpg] https://mirror.rackspace.com/mariadb/repo/10.6/debian $(lsb_release -sc) main" | tee /etc/apt/sources.list.d/mariadb.list
     
     # 安装 MariaDB
     apt-get update || error "Failed to update package lists after adding MariaDB repository"
