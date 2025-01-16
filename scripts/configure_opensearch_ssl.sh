@@ -100,6 +100,44 @@ log "Creating security configuration..."
 SECURITY_CONFIG_DIR="$CONFIG_DIR/opensearch-security"
 mkdir -p "$SECURITY_CONFIG_DIR"
 
+# 生成配置文件
+log "Generating configuration files..."
+cat > "$SECURITY_CONFIG_DIR/config.yml" <<EOF
+_meta:
+  type: "config"
+  config_version: 2
+
+config:
+  dynamic:
+    http:
+      anonymous_auth_enabled: false
+      xff:
+        enabled: false
+    authc:
+      basic_internal_auth_domain:
+        description: "Authenticate via HTTP Basic against internal users database"
+        http_enabled: true
+        transport_enabled: true
+        order: 0
+        http_authenticator:
+          type: basic
+          challenge: false
+        authentication_backend:
+          type: intern
+EOF
+
+cat > "$SECURITY_CONFIG_DIR/action_groups.yml" <<EOF
+_meta:
+  type: "actiongroups"
+  config_version: 2
+
+admin_all:
+  reserved: true
+  hidden: false
+  allowed_actions:
+    - "*"
+EOF
+
 # 生成内部用户配置
 log "Generating internal users configuration..."
 cat > "$SECURITY_CONFIG_DIR/internal_users.yml" <<EOF
@@ -178,8 +216,9 @@ systemctl restart opensearch
 
 # 等待服务启动并检查状态
 log "Waiting for OpenSearch to start..."
-for i in {1..30}; do
+for i in {1..60}; do
     if curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+        log "OpenSearch started successfully without security"
         break
     fi
     if [ $i -eq 5 ]; then
@@ -191,26 +230,37 @@ for i in {1..30}; do
 done
 echo ""
 
-# 检查服务状态
-if ! curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
-    warn "OpenSearch is not responding. Checking service status..."
-    systemctl status opensearch || true
-    echo "Last 50 lines of OpenSearch log:"
-    tail -n 50 /var/log/opensearch/magento-cluster.log || true
-    echo "System memory status:"
-    free -h || true
-    echo "OpenSearch process status:"
-    ps aux | grep opensearch || true
-    error "Failed to start OpenSearch. Please check the logs."
-fi
-
 # 启用安全插件
 log "Enabling security plugin..."
 sed -i 's/plugins.security.disabled: true/plugins.security.disabled: false/' "$CONFIG_DIR/opensearch.yml"
 systemctl restart opensearch
 
 # 等待服务重新启动
-sleep 10
+log "Waiting for OpenSearch to restart with security enabled..."
+for i in {1..60}; do
+    if curl -s -u "admin:admin" "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+        log "OpenSearch restarted successfully with security enabled"
+        break
+    fi
+    if [ $i -eq 5 ]; then
+        log "Checking OpenSearch logs after security enabled..."
+        tail -n 50 /var/log/opensearch/magento-cluster.log || true
+    fi
+    if [ $i -eq 60 ]; then
+        warn "OpenSearch is not responding after enabling security. Checking status..."
+        systemctl status opensearch || true
+        echo "Last 50 lines of OpenSearch log:"
+        tail -n 50 /var/log/opensearch/magento-cluster.log || true
+        echo "System memory status:"
+        free -h || true
+        echo "OpenSearch process status:"
+        ps aux | grep opensearch || true
+        error "Failed to start OpenSearch with security enabled. Please check the logs."
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
 
 # 创建新用户
 log "Creating user..."
