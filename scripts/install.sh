@@ -218,7 +218,7 @@ systemctl enable nginx
 # 第5阶段：安装缓存和消息队列
 log "Stage 5: Installing caching and message queue services..."
 # Redis
-apt-get install -y redis-server=7:7.2.* || error "Failed to install Redis 7.2"
+apt-get install -y redis-server || error "Failed to install Redis"
 systemctl start redis-server
 systemctl enable redis-server
 
