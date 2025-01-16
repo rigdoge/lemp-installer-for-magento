@@ -164,37 +164,20 @@ upstream fastcgi_backend {
 server {
     listen 80;
     server_name $DOMAIN;
+    
     set \$MAGE_ROOT $MAGENTO_ROOT;
     set \$MAGE_MODE $MAGENTO_MODE;
     
     access_log /var/log/nginx/$DOMAIN.access.log;
     error_log /var/log/nginx/$DOMAIN.error.log debug;
 
-    root \$MAGE_ROOT/pub;
+    # FastCGI 缓冲设置
+    fastcgi_buffers 16 16k;
+    fastcgi_buffer_size 32k;
     
-    index index.php;
-    autoindex off;
-    charset UTF-8;
-    
-    # PHP entry point for main application
-    location ~ ^/(index|get|static|errors/report|errors/404|errors/503|health_check)\.php$ {
-        try_files \$uri =404;
-        fastcgi_pass   fastcgi_backend;
-        fastcgi_buffers 16 16k;
-        fastcgi_buffer_size 32k;
-        
-        fastcgi_param  PHP_FLAG  "session.auto_start=off \n suhosin.session.cryptua=off";
-        fastcgi_param  PHP_VALUE "memory_limit=756M \n max_execution_time=18000";
-        fastcgi_read_timeout 600s;
-        fastcgi_connect_timeout 600s;
-        
-        fastcgi_index  index.php;
-        fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
-        fastcgi_param  PATH_INFO        \$fastcgi_path_info;
-        include        fastcgi_params;
-        
-        fastcgi_param MAGE_RUN_TYPE $MAGENTO_MODE;
-    }
+    # 增加超时时间
+    fastcgi_read_timeout 600s;
+    fastcgi_connect_timeout 600s;
     
     include $MAGENTO_ROOT/nginx.conf.sample;
 }
