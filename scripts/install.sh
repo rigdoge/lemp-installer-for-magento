@@ -241,9 +241,18 @@ systemctl start memcached
 systemctl enable memcached
 
 # RabbitMQ
-apt-get install -y rabbitmq-server=3.13.* || error "Failed to install RabbitMQ 3.13"
+log "Adding RabbitMQ repository..."
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/setup.deb.sh" | bash
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/setup.deb.sh" | bash
+apt-get update || error "Failed to update package lists after adding RabbitMQ repository"
+
+# 安装 RabbitMQ
+apt-get install -y rabbitmq-server || error "Failed to install RabbitMQ"
 systemctl start rabbitmq-server
 systemctl enable rabbitmq-server
+
+# 启用 RabbitMQ 管理插件
+rabbitmq-plugins enable rabbitmq_management
 
 # 第6阶段：安装性能优化工具
 log "Stage 6: Installing performance optimization tools..."
