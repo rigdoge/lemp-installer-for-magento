@@ -1,12 +1,12 @@
 # LEMP Stack Installer for Magento
 
-这是一个用于在Debian/Ubuntu系统上准备LEMP（Linux, Nginx, MySQL, PHP）环境的脚本集合，专门为 Magento 2 电商平台优化配置。本工具仅负责环境配置，不包含 Magento 2 的安装过程。
+这是一个用于在Debian/Ubuntu系统上准备LEMP（Linux, Nginx, MariaDB, PHP）环境的脚本集合，专门为 Magento 2 电商平台优化配置。本工具仅负责环境配置，不包含 Magento 2 的安装过程。
 
 ## 功能特点
 
-- 自动安装和配置 Nginx、MySQL、PHP 8.2
+- 自动安装和配置 Nginx、MariaDB、PHP 8.2
 - 针对 Magento 2 优化的 Nginx 配置
-- MySQL 数据库自动配置
+- MariaDB 数据库自动配置
 - PHP-FPM 优化配置
 - 完整的错误处理和日志记录
 - 自动备份功能
@@ -32,7 +32,7 @@ sudo ./scripts/install.sh
 
 ### 2. 数据库配置
 
-配置MySQL：
+配置MariaDB：
 
 ```bash
 sudo ./scripts/configure_mysql.sh <db_name> <db_user> <db_password> <root_password>
@@ -136,11 +136,11 @@ Fail2ban 默认配置：
 
 ### 参数说明
 
-MySQL配置：
+MariaDB配置：
 - db_name: 数据库名称
 - db_user: 数据库用户名
 - db_password: 数据库密码
-- root_password: MySQL root密码
+- root_password: MariaDB root密码
 
 Nginx虚拟主机配置：
 - domain: 网站域名
@@ -189,7 +189,7 @@ Nginx虚拟主机配置：
 
 - PHP-FPM进程数和内存限制
 - Nginx worker进程和连接数
-- MySQL缓冲区和线程设置
+- MariaDB缓冲区和线程设置
 - 系统内核参数
 - OPcache配置
 - FastCGI缓存
@@ -200,7 +200,7 @@ Nginx虚拟主机配置：
 
 - PHP配置安全
 - Nginx配置安全
-- MySQL用户和权限
+- MariaDB用户和权限
 - 文件系统权限
 - 系统安全设置
 - 开放端口
@@ -211,7 +211,7 @@ Nginx虚拟主机配置：
 
 - Nginx错误日志: `/var/log/nginx/error.log`
 - PHP-FPM错误日志: `/var/log/php8.2-fpm.log`
-- MySQL错误日志: `/var/log/mysql/error.log`
+- MariaDB错误日志: `/var/log/mysql/error.log`
 - 慢查询日志: `/var/log/mysql/slow.log`
 
 ## 贡献

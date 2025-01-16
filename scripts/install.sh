@@ -60,11 +60,11 @@ apt-get install -y nginx || error "Failed to install Nginx"
 systemctl start nginx
 systemctl enable nginx
 
-# 安装MySQL
-log "Installing MySQL..."
-apt-get install -y mysql-server || error "Failed to install MySQL"
-systemctl start mysql
-systemctl enable mysql
+# 安装MySQL/MariaDB
+log "Installing MariaDB..."
+apt-get install -y mariadb-server || error "Failed to install MariaDB"
+systemctl start mariadb
+systemctl enable mariadb
 
 # 安装PHP和必要的扩展
 log "Installing PHP and required extensions..."
@@ -117,7 +117,7 @@ fi
 # 重启服务
 log "Restarting services..."
 systemctl restart nginx
-systemctl restart mysql
+systemctl restart mariadb
 systemctl restart php8.2-fpm
 
 log "LEMP stack installation completed successfully!"

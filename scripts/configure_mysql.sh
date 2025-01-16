@@ -33,8 +33,8 @@ if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root"
 fi
 
-# 设置MySQL root密码
-log "Setting MySQL root password..."
+# 设置MySQL/MariaDB root密码
+log "Setting MariaDB root password..."
 mysql --connect-expired-password -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '$ROOT_PASSWORD';" || error "Failed to set root password"
 
 # 创建数据库
@@ -64,10 +64,10 @@ max_allowed_packet = 128M
 EOF
 
 # 重启MySQL服务
-log "Restarting MySQL service..."
-systemctl restart mysql || error "Failed to restart MySQL"
+log "Restarting MariaDB service..."
+systemctl restart mariadb || error "Failed to restart MariaDB"
 
-log "MySQL configuration completed successfully!"
+log "MariaDB configuration completed successfully!"
 log "Database: $DB_NAME"
 log "User: $DB_USER"
 log "Please save your passwords in a secure location." 
