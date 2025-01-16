@@ -939,10 +939,6 @@ EOF
 ## GC 日志
 -Xlog:gc*,gc+age=trace,safepoint:file=/var/log/opensearch/gc.log:utctime,pid,tags:filecount=32,filesize=64m
 
-## 性能优化
--XX:+OptimizeStringConcat
--XX:+UseFastAccessorMethods
-
 ## 调试设置
 -XX:+HeapDumpOnOutOfMemoryError
 -XX:HeapDumpPath=/var/log/opensearch
@@ -973,15 +969,18 @@ Environment=OPENSEARCH_HOME=/usr/local/opensearch
 Environment=OPENSEARCH_PATH_CONF=/etc/opensearch
 Environment=JAVA_HOME=/usr/local/opensearch/jdk
 Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
-Environment=OPENSEARCH_INITIAL_STATE_TIMEOUT=300s
+Environment=OPENSEARCH_JAVA_OPTS="-Xms1g -Xmx1g"
 
 User=opensearch
 Group=opensearch
 
 WorkingDirectory=/usr/local/opensearch
 
-ExecStartPre=/bin/bash -c "ulimit -n 65535"
-ExecStart=/usr/local/opensearch/bin/opensearch
+ExecStart=/usr/local/opensearch/jdk/bin/java \\
+    -Dopensearch.path.home=/usr/local/opensearch \\
+    -Dopensearch.path.conf=/etc/opensearch \\
+    -cp "/usr/local/opensearch/lib/*" \\
+    org.opensearch.bootstrap.OpenSearch
 
 # 系统限制设置
 LimitNOFILE=65535
