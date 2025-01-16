@@ -969,18 +969,13 @@ Environment=OPENSEARCH_HOME=/usr/local/opensearch
 Environment=OPENSEARCH_PATH_CONF=/etc/opensearch
 Environment=JAVA_HOME=/usr/local/opensearch/jdk
 Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
-Environment=OPENSEARCH_JAVA_OPTS="-Xms1g -Xmx1g"
 
 User=opensearch
 Group=opensearch
 
 WorkingDirectory=/usr/local/opensearch
 
-ExecStart=/usr/local/opensearch/jdk/bin/java \\
-    -Dopensearch.path.home=/usr/local/opensearch \\
-    -Dopensearch.path.conf=/etc/opensearch \\
-    -cp "/usr/local/opensearch/lib/*" \\
-    org.opensearch.bootstrap.OpenSearch
+ExecStart=/usr/local/opensearch/bin/opensearch
 
 # 系统限制设置
 LimitNOFILE=65535
