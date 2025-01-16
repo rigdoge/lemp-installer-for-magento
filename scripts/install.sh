@@ -83,67 +83,9 @@ log "Stage 2: Installing MySQL..."
 # 预配置数据库 root 密码
 DB_ROOT_PASSWORD="magento"
 
-# 添加 Debian Bookworm backports 仓库
-echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/bookworm-backports.list
-apt-get update
-
-# 从 backports 安装更新的依赖
-apt-get install -y -t bookworm-backports \
-    libc6 \
-    libstdc++6 \
-    libzstd1
-
-# 安装 libssl3
-if [[ "$ARCH" == "x86_64" ]]; then
-    wget http://ftp.de.debian.org/debian/pool/main/o/openssl/libssl3_3.0.11-1_amd64.deb
-    dpkg -i libssl3_3.0.11-1_amd64.deb || true
-elif [[ "$ARCH" == "aarch64" ]]; then
-    wget http://ftp.de.debian.org/debian/pool/main/o/openssl/libssl3_3.0.11-1_arm64.deb
-    dpkg -i libssl3_3.0.11-1_arm64.deb || true
-fi
-apt-get install -f -y
-rm -f libssl3_3.0.11-1_*.deb
-
-if [[ "$ARCH" == "x86_64" ]]; then
-    log "Installing MySQL for x86_64..."
-    # 下载 MySQL 服务器和客户端包
-    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-server-8.0_8.0.40-2_amd64.deb
-    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-8.0_8.0.40-2_amd64.deb
-    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-core-8.0_8.0.40-2_amd64.deb
-    apt-get install -y mysql-common
-elif [[ "$ARCH" == "aarch64" ]]; then
-    log "Installing MySQL for ARM64..."
-    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-server-8.0_8.0.40-2_arm64.deb
-    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-8.0_8.0.40-2_arm64.deb
-    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-core-8.0_8.0.40-2_arm64.deb
-    apt-get install -y mysql-common
-else
-    error "Unsupported architecture: $ARCH"
-fi
-
-# 安装依赖
-apt-get install -y libaio1 libmecab2 libsasl2-2 libevent-core-2.1-7 libcgi-fast-perl libcgi-pm-perl \
-    libconfig-inifiles-perl libdbd-mysql-perl libdbi-perl libencode-locale-perl libevent-pthreads-2.1-7 \
-    libfcgi-perl libhtml-parser-perl libhtml-tagset-perl libhttp-date-perl libhttp-message-perl \
-    libio-html-perl liblwp-mediatypes-perl libtimedate-perl liburi-perl libevent-2.1-7 \
-    mysql-common perl-modules-5.36
-
-# 安装 MySQL 包
-if [[ "$ARCH" == "x86_64" ]]; then
-    dpkg -i mysql-client-core-8.0_8.0.40-2_amd64.deb
-    dpkg -i mysql-client-8.0_8.0.40-2_amd64.deb
-    dpkg -i mysql-server-8.0_8.0.40-2_amd64.deb || true
-elif [[ "$ARCH" == "aarch64" ]]; then
-    dpkg -i mysql-client-core-8.0_8.0.40-2_arm64.deb
-    dpkg -i mysql-client-8.0_8.0.40-2_arm64.deb
-    dpkg -i mysql-server-8.0_8.0.40-2_arm64.deb || true
-fi
-
-# 修复可能的依赖问题
-apt-get install -f -y
-
-# 清理下载的文件
-rm -f mysql-*_8.0.40-2_*.deb
+# 安装 MySQL
+log "Installing MySQL..."
+apt-get install -y mysql-server mysql-common
 
 # 启动 MySQL
 systemctl start mysql || error "Failed to start MySQL"
