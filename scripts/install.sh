@@ -1018,34 +1018,28 @@ EOF
         log "Applying system parameters..."
         sysctl -w vm.max_map_count=262144
 
-        # 启动服务
-        log "Starting OpenSearch service..."
-        systemctl start opensearch
-
         # 等待服务启动并检查状态
         log "Waiting for OpenSearch to start..."
         max_attempts=30
         attempt=1
         while [ $attempt -le $max_attempts ]; do
             # 检查服务状态
-            if systemctl status opensearch | grep -q "active (running)"; then
-                log "OpenSearch service is running"
-                # 再次检查 HTTP 端口
+            if systemctl status opensearch | grep -q "Active: active (running)"; then
+                log "OpenSearch service is running, checking HTTP endpoint..."
                 if curl -s "http://localhost:9200" &>/dev/null; then
-                    log "OpenSearch is responding on HTTP port"
+                    log "OpenSearch is fully operational"
                     break
+                else
+                    log "Service is running but HTTP endpoint is not responding yet"
                 fi
-            fi
-
-            # 每5次尝试检查一次日志
-            if [ $((attempt % 5)) -eq 0 ]; then
-                log "Checking OpenSearch status and logs..."
-                systemctl status opensearch || true
-                if [ -f /var/log/opensearch/magento-cluster.log ]; then
-                    tail -n 20 /var/log/opensearch/magento-cluster.log
-                fi
-                if [ -f /var/log/opensearch/gc.log ]; then
-                    tail -n 5 /var/log/opensearch/gc.log
+            else
+                # 检查是否有错误
+                if systemctl status opensearch | grep -q "Result: exit-code"; then
+                    log "OpenSearch failed to start, checking logs..."
+                    systemctl status opensearch || true
+                    if [ -f /var/log/opensearch/magento-cluster.log ]; then
+                        tail -n 20 /var/log/opensearch/magento-cluster.log
+                    fi
                 fi
             fi
 
@@ -1062,6 +1056,7 @@ EOF
                 netstat -tulpn | grep 9200 || true
                 ls -la /var/log/opensearch/
                 ls -la /etc/opensearch/
+                error "OpenSearch failed to start after $max_attempts attempts"
             fi
         done
 
