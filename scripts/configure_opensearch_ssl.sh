@@ -113,6 +113,11 @@ chmod +x securityadmin.sh
 # 返回原目录
 cd -
 
+# 设置 Java 环境
+log "Setting up Java environment..."
+export OPENSEARCH_JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
 # 更新 OpenSearch 配置
 log "Updating OpenSearch configuration..."
 cat > "$CONFIG_DIR/opensearch.yml" <<EOF
@@ -124,20 +129,8 @@ network.host: 0.0.0.0
 http.port: 9200
 discovery.type: single-node
 
-# 安全配置
-plugins.security.ssl.transport.pemcert_filepath: certificates/node.pem
-plugins.security.ssl.transport.pemkey_filepath: certificates/node-key.pem
-plugins.security.ssl.transport.pemtrustedcas_filepath: certificates/root-ca.pem
-plugins.security.ssl.http.enabled: false
-plugins.security.ssl.transport.enforce_hostname_verification: false
-plugins.security.allow_default_init_securityindex: true
-plugins.security.authcz.admin_dn:
-  - "CN=node,OU=Example Com Unit,O=Example Com,L=Shanghai,ST=Shanghai,C=CN"
-plugins.security.audit.type: internal_opensearch
-plugins.security.enable_snapshot_restore_privilege: true
-plugins.security.check_snapshot_restore_write_privileges: true
-plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
-plugins.security.disabled: false
+# 先禁用安全插件
+plugins.security.disabled: true
 
 # JVM 配置
 bootstrap.memory_lock: false
@@ -146,6 +139,38 @@ EOF
 # 设置权限
 chown -R opensearch:opensearch "$CONFIG_DIR"
 chmod 600 "$CONFIG_DIR/opensearch.yml"
+
+# 重启 OpenSearch 并等待初始化完成
+log "Restarting OpenSearch..."
+systemctl restart opensearch
+
+# 等待服务启动并检查状态
+log "Waiting for OpenSearch to start..."
+for i in {1..60}; do
+    if curl -s "http://localhost:9200/_cluster/health" | grep -q '"status":\s*"green"'; then
+        log "OpenSearch started successfully without security"
+        break
+    fi
+    if [ $i -eq 5 ]; then
+        log "Checking OpenSearch logs..."
+        tail -n 50 /var/log/opensearch/magento-cluster.log || true
+        log "Checking OpenSearch status..."
+        systemctl status opensearch || true
+    fi
+    if [ $i -eq 60 ]; then
+        error "OpenSearch failed to start. Please check the logs."
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
+
+# 验证节点是否正常运行
+log "Verifying node status..."
+NODE_COUNT=$(curl -s "http://localhost:9200/_cat/nodes?h=ip" | wc -l)
+if [ "$NODE_COUNT" -eq 0 ]; then
+    error "No alive nodes found in the cluster. Please check OpenSearch configuration."
+fi
 
 # 生成配置文件
 log "Generating configuration files..."
@@ -283,57 +308,25 @@ EOF
 chown -R opensearch:opensearch "$SECURITY_CONFIG_DIR"
 chmod 600 "$SECURITY_CONFIG_DIR"/*
 
-# 重启 OpenSearch 并等待初始化完成
-log "Restarting OpenSearch..."
-systemctl restart opensearch
-
-# 等待服务启动并检查状态
-log "Waiting for OpenSearch to start..."
-for i in {1..60}; do
-    if curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
-        log "OpenSearch started successfully without security"
-        break
-    fi
-    if [ $i -eq 5 ]; then
-        log "Checking OpenSearch logs..."
-        tail -n 50 /var/log/opensearch/magento-cluster.log || true
-    fi
-    echo -n "."
-    sleep 2
-done
-echo ""
-
 # 启用安全插件
 log "Enabling security plugin..."
-sed -i 's/plugins.security.disabled: true/plugins.security.disabled: false/' "$CONFIG_DIR/opensearch.yml"
-systemctl restart opensearch
+cat >> "$CONFIG_DIR/opensearch.yml" <<EOF
 
-# 等待服务重新启动
-log "Waiting for OpenSearch to restart with security enabled..."
-for i in {1..60}; do
-    if curl -s -u "admin:admin" "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
-        log "OpenSearch restarted successfully with security enabled"
-        break
-    fi
-    if [ $i -eq 5 ]; then
-        log "Checking OpenSearch logs after security enabled..."
-        tail -n 50 /var/log/opensearch/magento-cluster.log || true
-    fi
-    if [ $i -eq 60 ]; then
-        warn "OpenSearch is not responding after enabling security. Checking status..."
-        systemctl status opensearch || true
-        echo "Last 50 lines of OpenSearch log:"
-        tail -n 50 /var/log/opensearch/magento-cluster.log || true
-        echo "System memory status:"
-        free -h || true
-        echo "OpenSearch process status:"
-        ps aux | grep opensearch || true
-        error "Failed to start OpenSearch with security enabled. Please check the logs."
-    fi
-    echo -n "."
-    sleep 2
-done
-echo ""
+# 安全配置
+plugins.security.ssl.transport.pemcert_filepath: certificates/node.pem
+plugins.security.ssl.transport.pemkey_filepath: certificates/node-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: certificates/root-ca.pem
+plugins.security.ssl.http.enabled: false
+plugins.security.ssl.transport.enforce_hostname_verification: false
+plugins.security.allow_default_init_securityindex: true
+plugins.security.authcz.admin_dn:
+  - "CN=node,OU=Example Com Unit,O=Example Com,L=Shanghai,ST=Shanghai,C=CN"
+plugins.security.audit.type: internal_opensearch
+plugins.security.enable_snapshot_restore_privilege: true
+plugins.security.check_snapshot_restore_write_privileges: true
+plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
+plugins.security.disabled: false
+EOF
 
 # 创建新用户
 log "Creating user..."
