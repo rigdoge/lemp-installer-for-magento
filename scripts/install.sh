@@ -858,17 +858,53 @@ network.host: 127.0.0.1
 http.port: 9200
 discovery.type: single-node
 bootstrap.memory_lock: true
+
+# 日志配置
+logger.level: DEBUG
+logger.action: DEBUG
 EOF
 
         # 配置 JVM 选项
         log "Configuring JVM options..."
         cat > /usr/local/opensearch/config/jvm.options <<EOF
--Xms1g
--Xmx1g
+################################################################
+## IMPORTANT: JVM heap size
+################################################################
+-Xms512m
+-Xmx512m
+
+################################################################
+## Expert settings
+################################################################
 -XX:+UseG1GC
 -XX:G1ReservePercent=25
 -XX:InitiatingHeapOccupancyPercent=30
+
+## Basic
+-XX:+UseCompressedOops
+-XX:+AlwaysPreTouch
+
+## Debug
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/var/log/opensearch
+
+## GC logging
+8-13:-Xlog:gc*,gc+age=trace,safepoint:file=/var/log/opensearch/gc.log:utctime,pid,tags:filecount=32,filesize=64m
 EOF
+
+        # 创建日志目录并设置权限
+        mkdir -p /var/log/opensearch
+        chown -R opensearch:opensearch /var/log/opensearch
+        chmod 755 /var/log/opensearch
+
+        # 检查 JDK 权限
+        log "Checking JDK permissions..."
+        chmod +x /usr/local/opensearch/jdk/bin/java
+        chmod +x /usr/local/opensearch/jdk/bin/*
+
+        # 检查启动脚本权限
+        chmod +x /usr/local/opensearch/bin/opensearch
+        chmod +x /usr/local/opensearch/bin/opensearch-env
 
         # 创建系统服务
         log "Creating OpenSearch service..."
