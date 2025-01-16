@@ -218,7 +218,13 @@ systemctl enable nginx
 # 第5阶段：安装缓存和消息队列
 log "Stage 5: Installing caching and message queue services..."
 # Redis
-apt-get install -y redis-server || error "Failed to install Redis"
+log "Adding Redis repository..."
+curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list
+apt-get update || error "Failed to update package lists after adding Redis repository"
+
+# 安装 Redis
+apt-get install -y redis-server=7:7.2.* || error "Failed to install Redis 7.2"
 systemctl start redis-server
 systemctl enable redis-server
 
