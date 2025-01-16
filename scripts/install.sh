@@ -79,24 +79,40 @@ rm -f /usr/share/keyrings/mysql*
 apt-get update
 
 # 下载 MySQL 服务器和客户端包
-wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-server_8.0.36-1debian12_amd64.deb
-wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-client_8.0.36-1debian12_amd64.deb
-wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-common_8.0.36-1debian12_amd64.deb
+if [[ "$ARCH" == "x86_64" ]]; then
+    log "Downloading MySQL packages for x86_64..."
+    wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-server_8.0.36-1debian12_amd64.deb
+    wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-client_8.0.36-1debian12_amd64.deb
+    wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-common_8.0.36-1debian12_amd64.deb
+elif [[ "$ARCH" == "aarch64" ]]; then
+    log "Downloading MySQL packages for ARM64..."
+    wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-server_8.0.36-1debian12_arm64.deb
+    wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-client_8.0.36-1debian12_arm64.deb
+    wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-common_8.0.36-1debian12_arm64.deb
+else
+    error "Unsupported architecture: $ARCH"
+fi
 
 # 安装依赖
 apt-get install -y libaio1 libmecab2 libsasl2-2
 
 # 安装 MySQL 包
 log "Installing MySQL packages..."
-dpkg -i mysql-common_8.0.36-1debian12_amd64.deb
-dpkg -i mysql-client_8.0.36-1debian12_amd64.deb
-dpkg -i mysql-server_8.0.36-1debian12_amd64.deb || true
+if [[ "$ARCH" == "x86_64" ]]; then
+    dpkg -i mysql-common_8.0.36-1debian12_amd64.deb
+    dpkg -i mysql-client_8.0.36-1debian12_amd64.deb
+    dpkg -i mysql-server_8.0.36-1debian12_amd64.deb || true
+elif [[ "$ARCH" == "aarch64" ]]; then
+    dpkg -i mysql-common_8.0.36-1debian12_arm64.deb
+    dpkg -i mysql-client_8.0.36-1debian12_arm64.deb
+    dpkg -i mysql-server_8.0.36-1debian12_arm64.deb || true
+fi
 
 # 修复可能的依赖问题
 apt-get install -f -y
 
 # 清理下载的文件
-rm mysql-*_8.0.36-1debian12_amd64.deb
+rm -f mysql-*_8.0.36-1debian12_*.deb
 
 # 第2阶段：安装数据库
 log "Stage 2: Installing MySQL..."
