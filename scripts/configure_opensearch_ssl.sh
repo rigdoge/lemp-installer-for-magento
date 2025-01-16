@@ -66,6 +66,26 @@ mkdir -p "$LOG_DIR"
 chown opensearch:opensearch "$LOG_DIR"
 chmod 750 "$LOG_DIR"
 
+# 创建证书目录
+log "Creating certificates directory..."
+CERT_DIR="/usr/local/opensearch/config/certificates"
+mkdir -p "$CERT_DIR"
+
+# 生成根证书
+log "Generating root certificate..."
+openssl genrsa -out "$CERT_DIR/root-ca-key.pem" 2048
+openssl req -new -x509 -sha256 -key "$CERT_DIR/root-ca-key.pem" -out "$CERT_DIR/root-ca.pem" -days 730 -subj "/C=CN/ST=Shanghai/L=Shanghai/O=Example Com/OU=Example Com Unit/CN=root-ca"
+
+# 生成节点证书
+log "Generating node certificate..."
+openssl genrsa -out "$CERT_DIR/node-key.pem" 2048
+openssl req -new -key "$CERT_DIR/node-key.pem" -out "$CERT_DIR/node.csr" -subj "/C=CN/ST=Shanghai/L=Shanghai/O=Example Com/OU=Example Com Unit/CN=node"
+openssl x509 -req -in "$CERT_DIR/node.csr" -CA "$CERT_DIR/root-ca.pem" -CAkey "$CERT_DIR/root-ca-key.pem" -CAcreateserial -sha256 -out "$CERT_DIR/node.pem" -days 730
+
+# 设置证书权限
+chown -R opensearch:opensearch "$CERT_DIR"
+chmod 600 "$CERT_DIR"/*
+
 # 更新 OpenSearch 配置
 log "Updating OpenSearch configuration..."
 cat > "$CONFIG_DIR/opensearch.yml" <<EOF
@@ -78,10 +98,14 @@ http.port: 9200
 discovery.type: single-node
 
 # 安全配置
-plugins.security.disabled: true
+plugins.security.ssl.transport.pemcert_filepath: certificates/node.pem
+plugins.security.ssl.transport.pemkey_filepath: certificates/node-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: certificates/root-ca.pem
 plugins.security.ssl.http.enabled: false
+plugins.security.ssl.transport.enforce_hostname_verification: false
 plugins.security.allow_default_init_securityindex: true
-plugins.security.allow_unsafe_democertificates: true
+plugins.security.authcz.admin_dn:
+  - "CN=node,OU=Example Com Unit,O=Example Com,L=Shanghai,ST=Shanghai,C=CN"
 plugins.security.audit.type: internal_opensearch
 plugins.security.enable_snapshot_restore_privilege: true
 plugins.security.check_snapshot_restore_write_privileges: true
