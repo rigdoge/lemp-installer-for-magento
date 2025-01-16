@@ -45,6 +45,10 @@ log "Detected Magento directory owner: $MAGENTO_OWNER"
 PHP_USER="doge"
 PHP_GROUP="doge"
 
+# 配置 Nginx 用户
+log "Configuring Nginx user..."
+sed -i "s/user www-data/user $PHP_USER $PHP_GROUP/" /etc/nginx/nginx.conf
+
 # 配置 PHP-FPM 池
 log "Configuring PHP-FPM pool..."
 PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
@@ -83,6 +87,12 @@ mkdir -p /run/php
 chown $PHP_USER:$PHP_GROUP /run/php
 chmod 755 /run/php
 
+# 创建 Nginx 日志目录
+log "Creating Nginx log directory..."
+mkdir -p /var/log/nginx
+chown $PHP_USER:$PHP_GROUP /var/log/nginx
+chmod 755 /var/log/nginx
+
 # 设置目录权限
 log "Setting directory permissions..."
 chown -R $PHP_USER:$PHP_GROUP "$MAGENTO_ROOT"
@@ -98,6 +108,9 @@ server {
     
     root $MAGENTO_ROOT/pub;
     index index.php;
+    
+    access_log /var/log/nginx/$DOMAIN.access.log;
+    error_log /var/log/nginx/$DOMAIN.error.log;
     
     location ~ \.php$ {
         fastcgi_pass unix:/run/php/php8.2-fpm-magento.sock;
