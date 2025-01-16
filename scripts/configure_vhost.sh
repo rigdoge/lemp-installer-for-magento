@@ -106,7 +106,7 @@ pm.start_servers = 5
 pm.min_spare_servers = 5
 pm.max_spare_servers = 35
 
-php_value[memory_limit] = 756M
+php_value[memory_limit] = 4G
 php_value[max_execution_time] = 18000
 
 catch_workers_output = yes
