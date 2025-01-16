@@ -77,9 +77,8 @@ rm -f /usr/share/keyrings/mysql*
 
 # 添加 MySQL GPG key 和仓库
 log "Adding MySQL repository..."
-curl -fsSL https://repo.mysql.com/RPM-GPG-KEY-mysql-2022 | gpg --dearmor -o /usr/share/keyrings/mysql-archive-keyring.gpg
-curl -fsSL https://repo.mysql.com/RPM-GPG-KEY-mysql | gpg --dearmor -o /usr/share/keyrings/mysql-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/mysql-archive-keyring.gpg] http://repo.mysql.com/apt/debian $(lsb_release -sc) mysql-8.0" | tee /etc/apt/sources.list.d/mysql.list
+apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C
+echo "deb http://repo.mysql.com/apt/debian $(lsb_release -sc) mysql-8.0" | tee /etc/apt/sources.list.d/mysql.list
 
 # 更新包列表
 apt-get update || error "Failed to update package lists after adding MySQL repository"
