@@ -114,8 +114,8 @@ if [[ "$ARCH" == "x86_64" ]]; then
     systemctl enable mysql
 else
     # 安装 MariaDB
-    log "Installing MariaDB for ARM64..."
-    apt-get install -y mariadb-server mariadb-client
+    log "Installing MariaDB 10.6 for ARM64..."
+    apt-get install -y mariadb-server-10.6 mariadb-client-10.6 || error "Failed to install MariaDB 10.6"
     
     # 启动 MariaDB
     systemctl start mariadb || error "Failed to start MariaDB"
