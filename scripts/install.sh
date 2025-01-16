@@ -1010,9 +1010,19 @@ EOF
         # 重新加载 systemd 配置
         systemctl daemon-reload
 
-        # 启用并启动服务
+        # 先启用服务，再启动
+        log "Enabling and starting OpenSearch service..."
         systemctl enable opensearch
+        sleep 2  # 给一点时间让 systemd 处理服务启用
         systemctl start opensearch
+
+        # 验证服务状态
+        log "Verifying OpenSearch service status..."
+        if ! systemctl is-active --quiet opensearch; then
+            systemctl status opensearch || true
+            log "Checking OpenSearch logs..."
+            journalctl -u opensearch --no-pager | tail -n 50
+        fi
 
         # 等待 OpenSearch 完全启动
         log "Waiting for OpenSearch to start..."
@@ -1024,13 +1034,21 @@ EOF
                 break
             fi
             log "Attempt $attempt/$max_attempts: Waiting for OpenSearch to start..."
-            if [ $attempt -eq $max_attempts ]; then
-                log "Checking OpenSearch logs..."
-                journalctl -u opensearch --no-pager | tail -n 50
-            fi
             sleep 2
             ((attempt++))
         done
+
+        # 如果服务没有启动，尝试重启
+        if ! systemctl is-active --quiet opensearch; then
+            log "OpenSearch failed to start automatically, attempting restart..."
+            systemctl restart opensearch
+            sleep 5
+            if systemctl is-active --quiet opensearch; then
+                log "OpenSearch successfully started after restart"
+            else
+                warn "OpenSearch failed to start automatically. You may need to start it manually with: sudo systemctl start opensearch"
+            fi
+        fi
     else
         log "OpenSearch service is already running"
     fi
