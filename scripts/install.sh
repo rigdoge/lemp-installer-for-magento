@@ -463,19 +463,21 @@ apt-get install -y certbot python3-certbot-nginx || error "Failed to install Cer
 # 输出安装版本信息
 log "Installation completed successfully!"
 log "Installed versions:"
-nginx -v
+echo "----------------------------------------"
+nginx -v 2>&1 | sed 's/^/Nginx: /'
 if [[ "$ARCH" == "x86_64" ]]; then
-    mysql --version
+    mysql --version | sed 's/^/MySQL: /'
 else
-    mariadb --version
+    mariadb --version | sed 's/^/MariaDB: /'
 fi
-php --version
-redis-cli --version
-rabbitmqctl version
-varnishd -V
-composer --version
-echo "OpenSearch 2.12.0"
-dpkg -l | grep phpmyadmin | awk '{print "phpMyAdmin " $3}'
-memcached -h | head -n1
-dpkg -l | grep webmin | awk '{print "Webmin " $3}'
-dpkg -l | grep fail2ban | awk '{print "Fail2ban " $3}'
+php --version | head -n1 | sed 's/^/PHP: /'
+redis-cli --version | sed 's/^/Redis: /'
+rabbitmqctl version | head -n1 | sed 's/^/RabbitMQ: /'
+varnishd -V 2>&1 | head -n1 | sed 's/^/Varnish: /'
+composer --version | sed 's/^/Composer: /'
+echo "OpenSearch: 2.12.0"
+dpkg -l | grep "^ii.*phpmyadmin" | head -n1 | awk '{print "phpMyAdmin: " $3}'
+memcached -h | head -n1 | sed 's/^/Memcached: /'
+dpkg -l | grep "^ii.*webmin" | awk '{print "Webmin: " $3}'
+dpkg -l | grep "^ii.*fail2ban" | awk '{print "Fail2ban: " $3}'
+echo "----------------------------------------"
