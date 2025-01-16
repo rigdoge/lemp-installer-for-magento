@@ -66,41 +66,33 @@ usermod -a -G www-data "$MAGENTO_OWNER"
 log "Configuring PHP-FPM pool..."
 PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
 
-# 获取 Nginx 用户
-NGINX_USER=$(ps aux | grep -E "nginx.*master" | grep -v grep | awk '{print $1}')
-if [ -z "$NGINX_USER" ]; then
-    NGINX_USER="www-data"
-fi
-log "Detected Nginx user: $NGINX_USER"
-
-# 停止默认的 www 池
-if [ -f "/etc/php/8.2/fpm/pool.d/www.conf" ]; then
-    log "Disabling default PHP-FPM pool..."
-    mv /etc/php/8.2/fpm/pool.d/www.conf /etc/php/8.2/fpm/pool.d/www.conf.disabled
-fi
+# 不再禁用默认的 www 池
+# if [ -f "/etc/php/8.2/fpm/pool.d/www.conf" ]; then
+#     log "Disabling default PHP-FPM pool..."
+#     mv /etc/php/8.2/fpm/pool.d/www.conf /etc/php/8.2/fpm/pool.d/www.conf.disabled
+# fi
 
 cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
-user = $NGINX_USER
-group = $NGINX_USER
+user = www-data
+group = www-data
 listen = /run/php/php8.2-fpm-magento.sock
-listen.owner = $NGINX_USER
-listen.group = $NGINX_USER
+listen.owner = www-data
+listen.group = www-data
 listen.mode = 0660
 
-pm = dynamic
+pm = ondemand
 pm.max_children = 50
-pm.start_servers = 5
-pm.min_spare_servers = 5
-pm.max_spare_servers = 35
+pm.process_idle_timeout = 10s
+pm.max_requests = 500
 
-php_admin_value[memory_limit] = 756M
-php_admin_value[max_execution_time] = 18000
-php_admin_value[session.auto_start] = Off
-php_admin_value[suhosin.session.cryptua] = Off
+php_value[memory_limit] = 756M
+php_value[max_execution_time] = 18000
+php_value[session.auto_start] = Off
+php_value[suhosin.session.cryptua] = Off
 
-php_admin_value[error_log] = /var/log/php-fpm/magento-error.log
-php_admin_flag[log_errors] = on
+php_value[error_log] = /var/log/php-fpm/magento-error.log
+php_flag[log_errors] = on
 
 security.limit_extensions = .php
 EOF
@@ -108,13 +100,13 @@ EOF
 # 创建 PHP-FPM 日志目录
 log "Creating PHP-FPM log directory..."
 mkdir -p /var/log/php-fpm
-chown $NGINX_USER:$NGINX_USER /var/log/php-fpm
+chown www-data:www-data /var/log/php-fpm
 chmod 755 /var/log/php-fpm
 
 # 创建 PHP-FPM socket 目录
 log "Creating PHP-FPM socket directory..."
 mkdir -p /run/php
-chown $NGINX_USER:$NGINX_USER /run/php
+chown www-data:www-data /run/php
 chmod 755 /run/php
 
 # 创建必要的目录
