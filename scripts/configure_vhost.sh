@@ -62,6 +62,14 @@ fi
 log "Adding $MAGENTO_OWNER to www-data group..."
 usermod -a -G www-data "$MAGENTO_OWNER"
 
+# 获取 Nginx 用户
+log "Detecting Nginx user..."
+NGINX_USER=$(ps aux | grep "nginx: master" | grep -v grep | awk '{print $1}')
+if [ -z "$NGINX_USER" ]; then
+    NGINX_USER="www-data"
+fi
+log "Nginx is running as user: $NGINX_USER"
+
 # 配置 PHP-FPM 池
 log "Configuring PHP-FPM pool..."
 PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
@@ -80,11 +88,11 @@ fi
 
 cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
-user = www-data
-group = www-data
+user = $NGINX_USER
+group = $NGINX_USER
 listen = /run/php/php8.2-fpm-magento.sock
-listen.owner = www-data
-listen.group = www-data
+listen.owner = $NGINX_USER
+listen.group = $NGINX_USER
 listen.mode = 0660
 
 pm = dynamic
@@ -117,10 +125,10 @@ EOF
 # 确保日志目录存在并设置正确的权限
 log "Setting up log directories..."
 mkdir -p /var/log/php-fpm
-chown -R www-data:www-data /var/log/php-fpm
+chown -R $NGINX_USER:$NGINX_USER /var/log/php-fpm
 chmod 755 /var/log/php-fpm
 touch /var/log/php-fpm/magento.error.log
-chown www-data:www-data /var/log/php-fpm/magento.error.log
+chown $NGINX_USER:$NGINX_USER /var/log/php-fpm/magento.error.log
 chmod 644 /var/log/php-fpm/magento.error.log
 
 # 设置配置文件权限
@@ -137,7 +145,7 @@ chmod 755 /var/log/php-fpm
 # 创建 PHP-FPM socket 目录
 log "Creating PHP-FPM socket directory..."
 mkdir -p /run/php
-chown www-data:www-data /run/php
+chown $NGINX_USER:$NGINX_USER /run/php
 chmod 755 /run/php
 
 # 添加调试信息
