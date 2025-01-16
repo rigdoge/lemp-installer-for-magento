@@ -35,21 +35,21 @@ mkdir -p "$CERT_DIR"
 # 生成根证书
 log "Generating root CA..."
 openssl genrsa -out "$CERT_DIR/root-ca-key.pem" 2048
-openssl req -new -x509 -sha256 -key "$CERT_DIR/root-ca-key.pem" -out "$CERT_DIR/root-ca.pem" -days 730 -subj "/C=CN/ST=Shanghai/L=Shanghai/O=Magento/OU=OpenSearch/CN=Root CA"
+openssl req -new -x509 -sha256 -key "$CERT_DIR/root-ca-key.pem" -out "$CERT_DIR/root-ca.pem" -days 3650 -subj "/C=CN/ST=Shanghai/L=Shanghai/O=Magento/OU=OpenSearch/CN=Root CA"
 
 # 生成管理员证书
 log "Generating admin certificate..."
 openssl genrsa -out "$CERT_DIR/admin-key-temp.pem" 2048
 openssl pkcs8 -inform PEM -outform PEM -in "$CERT_DIR/admin-key-temp.pem" -topk8 -nocrypt -v1 PBE-SHA1-3DES -out "$CERT_DIR/admin-key.pem"
 openssl req -new -key "$CERT_DIR/admin-key.pem" -out "$CERT_DIR/admin.csr" -subj "/C=CN/ST=Shanghai/L=Shanghai/O=Magento/OU=OpenSearch/CN=admin"
-openssl x509 -req -in "$CERT_DIR/admin.csr" -CA "$CERT_DIR/root-ca.pem" -CAkey "$CERT_DIR/root-ca-key.pem" -CAcreateserial -out "$CERT_DIR/admin.pem" -days 730 -sha256
+openssl x509 -req -in "$CERT_DIR/admin.csr" -CA "$CERT_DIR/root-ca.pem" -CAkey "$CERT_DIR/root-ca-key.pem" -CAcreateserial -out "$CERT_DIR/admin.pem" -days 3650 -sha256
 
 # 生成节点证书
 log "Generating node certificate..."
 openssl genrsa -out "$CERT_DIR/node-key-temp.pem" 2048
 openssl pkcs8 -inform PEM -outform PEM -in "$CERT_DIR/node-key-temp.pem" -topk8 -nocrypt -v1 PBE-SHA1-3DES -out "$CERT_DIR/node-key.pem"
 openssl req -new -key "$CERT_DIR/node-key.pem" -out "$CERT_DIR/node.csr" -subj "/C=CN/ST=Shanghai/L=Shanghai/O=Magento/OU=OpenSearch/CN=node"
-openssl x509 -req -in "$CERT_DIR/node.csr" -CA "$CERT_DIR/root-ca.pem" -CAkey "$CERT_DIR/root-ca-key.pem" -CAcreateserial -out "$CERT_DIR/node.pem" -days 730 -sha256
+openssl x509 -req -in "$CERT_DIR/node.csr" -CA "$CERT_DIR/root-ca.pem" -CAkey "$CERT_DIR/root-ca-key.pem" -CAcreateserial -out "$CERT_DIR/node.pem" -days 3650 -sha256
 
 # 清理临时文件
 rm -f "$CERT_DIR/admin-key-temp.pem" "$CERT_DIR/node-key-temp.pem" "$CERT_DIR/admin.csr" "$CERT_DIR/node.csr"

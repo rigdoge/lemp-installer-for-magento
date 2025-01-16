@@ -194,6 +194,32 @@ Nginx虚拟主机配置：
 - db_user: 数据库用户名
 - db_password: 数据库密码
 
+### 配置 OpenSearch SSL
+
+如果需要为 OpenSearch 启用加密访问，可以使用以下命令：
+
+```bash
+sudo ./scripts/configure_opensearch_ssl.sh
+```
+
+该脚本会：
+1. 生成所需的证书（有效期10年）：
+   - 根证书 (root-ca.pem)
+   - 管理员证书 (admin.pem)
+   - 节点证书 (node.pem)
+2. 配置 OpenSearch 使用这些证书
+3. 重启 OpenSearch 服务
+
+配置完成后，可以使用以下命令测试：
+```bash
+curl -k -X GET "https://localhost:9200/_cat/nodes?v" \
+  --cert /usr/local/opensearch/config/certificates/admin.pem \
+  --key /usr/local/opensearch/config/certificates/admin-key.pem \
+  --cacert /usr/local/opensearch/config/certificates/root-ca.pem
+```
+
+所有证书都存放在 `/usr/local/opensearch/config/certificates` 目录下。
+
 ## 目录结构
 
 ```
