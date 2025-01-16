@@ -207,7 +207,7 @@ echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx
 apt-get update || error "Failed to update package lists after adding Nginx repository"
 
 # 安装 Nginx
-apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
+apt-get install -y --allow-downgrades nginx=1.24.* || error "Failed to install Nginx 1.24"
 systemctl start nginx
 systemctl enable nginx
 
