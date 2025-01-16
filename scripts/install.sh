@@ -116,14 +116,9 @@ else
     # 安装 MariaDB
     log "Installing MariaDB 10.6 for ARM64..."
     
-    # 添加 MariaDB 仓库
-    log "Adding MariaDB repository..."
-    curl -LsS https://mariadb.org/mariadb_release_signing_key.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/mariadb.gpg
-    echo "deb [arch=amd64,arm64] https://mirrors.aliyun.com/mariadb/repo/10.6/debian $(lsb_release -sc) main" > /etc/apt/sources.list.d/mariadb.list
-    
     # 安装 MariaDB
-    apt-get update || error "Failed to update package lists after adding MariaDB repository"
-    apt-get install -y mariadb-server mariadb-client || error "Failed to install MariaDB 10.6"
+    apt-get update || error "Failed to update package lists"
+    apt-get install -y mariadb-server mariadb-client || error "Failed to install MariaDB"
     
     # 启动 MariaDB
     systemctl start mariadb || error "Failed to start MariaDB"
