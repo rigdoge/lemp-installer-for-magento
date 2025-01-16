@@ -90,10 +90,7 @@ cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
 user = $PHP_USER
 group = $PHP_GROUP
-listen = /run/php/php8.2-fpm-magento.sock
-listen.owner = $PHP_USER
-listen.group = $PHP_GROUP
-listen.mode = 0660
+listen = 127.0.0.1:9000
 
 pm = dynamic
 pm.max_children = 50
@@ -108,11 +105,6 @@ catch_workers_output = yes
 php_admin_flag[log_errors] = on
 php_admin_value[error_log] = /var/log/php-fpm/magento-pool.error.log
 php_admin_value[display_errors] = Off
-
-; 添加更多的错误日志设置
-php_flag[display_startup_errors] = Off
-php_flag[log_errors] = On
-php_value[error_reporting] = E_ALL
 EOF
 
 # 检查并创建必要的目录和权限
@@ -144,10 +136,17 @@ server {
     error_log /var/log/nginx/$DOMAIN.error.log;
     
     location ~ \.php$ {
-        fastcgi_pass unix:/run/php/php8.2-fpm-magento.sock;
+        try_files \$uri =404;
+        fastcgi_pass 127.0.0.1:9000;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
         include fastcgi_params;
+        
+        # 添加调试信息
+        fastcgi_intercept_errors on;
+        fastcgi_buffer_size 128k;
+        fastcgi_buffers 4 256k;
+        fastcgi_busy_buffers_size 256k;
     }
 
     location / {
