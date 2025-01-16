@@ -97,17 +97,17 @@ rm -f /etc/apt/sources.list.d/mysql.list
 rm -f /usr/share/keyrings/mysql*
 
 if [[ "$ARCH" == "x86_64" ]]; then
-    # 添加 MySQL GPG key 和仓库
-    log "Adding MySQL repository..."
-    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C
-    echo "deb http://repo.mysql.com/apt/debian $(lsb_release -sc) mysql-8.0" | tee /etc/apt/sources.list.d/mysql.list
+    # 添加 Percona 仓库
+    log "Adding Percona repository..."
+    wget -O - https://repo.percona.com/apt/percona-release.key | gpg --dearmor > /usr/share/keyrings/percona-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/percona-keyring.gpg] https://repo.percona.com/ps-80/apt $(lsb_release -sc) main" > /etc/apt/sources.list.d/percona-mysql.list
     
     # 更新包列表
-    apt-get update || error "Failed to update package lists after adding MySQL repository"
+    apt-get update || error "Failed to update package lists after adding Percona repository"
     
-    # 安装 MySQL
-    log "Installing MySQL..."
-    apt-get install -y mysql-server
+    # 安装 Percona MySQL
+    log "Installing Percona MySQL 8.0..."
+    DEBIAN_FRONTEND=noninteractive apt-get install -y percona-server-client percona-server-server || error "Failed to install Percona MySQL 8.0"
     
     # 启动 MySQL
     systemctl start mysql || error "Failed to start MySQL"
