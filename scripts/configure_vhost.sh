@@ -6,11 +6,16 @@ set -e
 # 颜色定义
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # 日志函数
 log() {
     echo -e "${GREEN}[INFO]${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
 error() {
@@ -43,6 +48,36 @@ if [ ! -f "$MAGENTO_NGINX_CONF" ]; then
     error "Magento Nginx configuration sample not found: $MAGENTO_NGINX_CONF"
 fi
 
+# 获取目录所有者
+MAGENTO_OWNER=$(stat -c '%U' "$MAGENTO_ROOT")
+log "Detected Magento directory owner: $MAGENTO_OWNER"
+
+# 配置 PHP-FPM 池
+log "Configuring PHP-FPM pool..."
+PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
+cat > "$PHP_FPM_POOL_CONF" <<EOF
+[magento]
+user = $MAGENTO_OWNER
+group = $MAGENTO_OWNER
+listen = /run/php/php8.2-fpm-magento.sock
+listen.owner = $MAGENTO_OWNER
+listen.group = $MAGENTO_OWNER
+listen.mode = 0660
+
+pm = dynamic
+pm.max_children = 50
+pm.start_servers = 5
+pm.min_spare_servers = 5
+pm.max_spare_servers = 35
+
+php_admin_value[memory_limit] = 756M
+php_admin_value[max_execution_time] = 18000
+php_admin_value[session.auto_start] = Off
+php_admin_value[suhosin.session.cryptua] = Off
+
+security.limit_extensions = .php
+EOF
+
 # 创建必要的目录
 log "Creating Nginx configuration directories..."
 mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
@@ -61,7 +96,7 @@ CONF_FILE="/etc/nginx/sites-available/$DOMAIN.conf"
 # 创建基本的服务器配置
 cat > "$CONF_FILE" <<EOF
 upstream fastcgi_backend {
-    server unix:/run/php/php8.2-fpm.sock;
+    server unix:/run/php/php8.2-fpm-magento.sock;
 }
 
 server {
@@ -81,6 +116,30 @@ EOF
 if [ ! -f "/etc/nginx/sites-enabled/$DOMAIN.conf" ]; then
     ln -s "$CONF_FILE" "/etc/nginx/sites-enabled/$DOMAIN.conf"
 fi
+
+# 设置目录权限
+log "Setting directory permissions..."
+find "$MAGENTO_ROOT" -type f -exec chmod 644 {} \;
+find "$MAGENTO_ROOT" -type d -exec chmod 755 {} \;
+chown -R $MAGENTO_OWNER:$MAGENTO_OWNER "$MAGENTO_ROOT"
+
+# 设置特殊目录权限
+if [ -d "$MAGENTO_ROOT/var" ]; then
+    chmod -R 777 "$MAGENTO_ROOT/var"
+fi
+if [ -d "$MAGENTO_ROOT/pub/static" ]; then
+    chmod -R 777 "$MAGENTO_ROOT/pub/static"
+fi
+if [ -d "$MAGENTO_ROOT/pub/media" ]; then
+    chmod -R 777 "$MAGENTO_ROOT/pub/media"
+fi
+if [ -d "$MAGENTO_ROOT/app/etc" ]; then
+    chmod -R 777 "$MAGENTO_ROOT/app/etc"
+fi
+
+# 重启 PHP-FPM
+log "Restarting PHP-FPM..."
+systemctl restart php8.2-fpm || error "Failed to restart PHP-FPM"
 
 # 测试Nginx配置
 log "Testing Nginx configuration..."
