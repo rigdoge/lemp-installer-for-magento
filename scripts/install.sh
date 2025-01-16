@@ -94,10 +94,15 @@ apt-get install -y -t bookworm-backports \
     libzstd1
 
 # 安装 libssl3
-wget http://ftp.de.debian.org/debian/pool/main/o/openssl/libssl3_3.0.11-1~deb12u2_arm64.deb
-dpkg -i libssl3_3.0.11-1~deb12u2_arm64.deb || true
+if [[ "$ARCH" == "x86_64" ]]; then
+    wget http://ftp.de.debian.org/debian/pool/main/o/openssl/libssl3_3.0.11-1_amd64.deb
+    dpkg -i libssl3_3.0.11-1_amd64.deb || true
+elif [[ "$ARCH" == "aarch64" ]]; then
+    wget http://ftp.de.debian.org/debian/pool/main/o/openssl/libssl3_3.0.11-1_arm64.deb
+    dpkg -i libssl3_3.0.11-1_arm64.deb || true
+fi
 apt-get install -f -y
-rm libssl3_3.0.11-1~deb12u2_arm64.deb
+rm -f libssl3_3.0.11-1_*.deb
 
 if [[ "$ARCH" == "x86_64" ]]; then
     log "Installing MySQL for x86_64..."
