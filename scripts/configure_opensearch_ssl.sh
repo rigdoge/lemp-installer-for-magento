@@ -59,22 +59,6 @@ if [ -f "$CONFIG_DIR/opensearch.yml" ]; then
     log "Backed up existing OpenSearch configuration"
 fi
 
-# 生成内部用户配置文件
-log "Generating internal users configuration..."
-cat > "$CONFIG_DIR/internal_users.yml" <<EOF
-_meta:
-  type: "internalusers"
-  config_version: 2
-
-# 定义用户
-$USERNAME:
-  hash: "$(echo -n "$PASSWORD" | openssl dgst -sha512 | awk '{print $2}')"
-  reserved: false
-  backend_roles:
-  - "admin"
-  description: "Admin user"
-EOF
-
 # 更新 OpenSearch 配置
 log "Updating OpenSearch configuration..."
 cat > "$CONFIG_DIR/opensearch.yml" <<EOF
@@ -90,35 +74,30 @@ discovery.type: single-node
 plugins.security.disabled: false
 plugins.security.ssl.http.enabled: false
 plugins.security.allow_default_init_securityindex: true
-plugins.security.authcz.admin_dn:
-  - "CN=admin"
+plugins.security.allow_unsafe_democertificates: true
 plugins.security.audit.type: internal_opensearch
 plugins.security.enable_snapshot_restore_privilege: true
 plugins.security.check_snapshot_restore_write_privileges: true
 plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
-
-# 角色映射
-plugins.security.roles_mapping.all_access:
-  backend_roles:
-  - "admin"
-  hosts: []
-  users:
-  - "$USERNAME"
 EOF
 
 # 设置权限
 chown -R opensearch:opensearch "$CONFIG_DIR"
-chmod 600 "$CONFIG_DIR/internal_users.yml"
 chmod 600 "$CONFIG_DIR/opensearch.yml"
 
-# 重启 OpenSearch
+# 复制演示配置文件
+log "Copying demo configuration files..."
+cp -r /usr/local/opensearch/plugins/opensearch-security/securityconfig/* "$CONFIG_DIR/"
+chown -R opensearch:opensearch "$CONFIG_DIR"
+
+# 重启 OpenSearch 并等待初始化完成
 log "Restarting OpenSearch..."
 systemctl restart opensearch
 
 # 等待服务启动并检查状态
 log "Waiting for OpenSearch to start..."
 for i in {1..30}; do
-    if curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+    if curl -s -u "admin:admin" "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
         break
     fi
     echo -n "."
@@ -127,12 +106,23 @@ done
 echo ""
 
 # 检查服务状态
-if ! curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+if ! curl -s -u "admin:admin" "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
     warn "OpenSearch is not responding. Checking service status..."
     systemctl status opensearch
     journalctl -xeu opensearch
     error "Failed to start OpenSearch. Please check the logs."
 fi
+
+# 创建新用户
+log "Creating user..."
+curl -X PUT "http://localhost:9200/_plugins/_security/api/internalusers/$USERNAME" \
+    -H 'Content-Type: application/json' \
+    -u "admin:admin" \
+    -d "{
+  \"password\": \"$PASSWORD\",
+  \"backend_roles\": [\"admin\"],
+  \"attributes\": {}
+}"
 
 # 测试连接
 log "Testing connection..."
