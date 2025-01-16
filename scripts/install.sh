@@ -236,7 +236,7 @@ log "Adding required repositories..."
 
 # 检查 MySQL 是否已安装并正常运行
 log "Checking MySQL installation..."
-if systemctl is-active --quiet mysql && mysqladmin ping &>/dev/null; then
+if systemctl is-active --quiet mysql && mysqladmin ping --connect-timeout=2 &>/dev/null; then
     log "MySQL is already running and responding to ping"
     MYSQL_VERSION=$(mysql --version)
     if [[ $MYSQL_VERSION == *"Percona"* ]]; then
@@ -289,7 +289,7 @@ if [ "$SKIP_MYSQL" != "true" ]; then
     max_attempts=30
     attempt=1
     while [ $attempt -le $max_attempts ]; do
-        if mysqladmin ping &>/dev/null; then
+        if mysqladmin ping --connect-timeout=2 &>/dev/null; then
             log "MySQL is responding to ping"
             break
         fi
