@@ -136,20 +136,58 @@ if [[ "$ARCH" == "x86_64" || "$ARCH" == "aarch64" ]]; then
         percona-server-server || error "Failed to install Percona MySQL 8.0"
     
     # 确保 MySQL 数据目录存在且权限正确
-    log "Checking MySQL data directory..."
+    log "Setting up MySQL data directory..."
+    if [ -d "/var/lib/mysql" ]; then
+        log "Cleaning up existing MySQL data directory..."
+        rm -rf /var/lib/mysql/*
+    fi
+    
     mkdir -p /var/lib/mysql
     chown -R mysql:mysql /var/lib/mysql
     chmod 750 /var/lib/mysql
     
+    # 初始化 MySQL 数据目录
+    log "Initializing MySQL data directory..."
+    mysqld --initialize-insecure --user=mysql || error "Failed to initialize MySQL data directory"
+    
+    # 创建必要的目录和文件
+    log "Creating necessary directories and files..."
+    mkdir -p /var/run/mysqld
+    chown -R mysql:mysql /var/run/mysqld
+    chmod 755 /var/run/mysqld
+    
+    # 创建默认配置文件
+    log "Creating default MySQL configuration..."
+    cat > /etc/mysql/conf.d/mysql.cnf <<EOF
+[mysqld]
+user = mysql
+pid-file = /var/run/mysqld/mysqld.pid
+socket = /var/run/mysqld/mysqld.sock
+port = 3306
+basedir = /usr
+datadir = /var/lib/mysql
+tmpdir = /tmp
+bind-address = 127.0.0.1
+EOF
+    
     # 启动 MySQL 服务
     log "Starting MySQL service..."
-    systemctl start mysql || {
+    if ! systemctl start mysql; then
         error_code=$?
         warn "Failed to start MySQL service (exit code: $error_code)"
-        check_mysql_status
+        log "Checking MySQL error log..."
+        if [ -f /var/log/mysql/error.log ]; then
+            tail -n 50 /var/log/mysql/error.log
+        fi
+        if [ -f /var/lib/mysql/*.err ]; then
+            log "Checking MySQL data directory error log..."
+            tail -n 50 /var/lib/mysql/*.err
+        fi
+        journalctl -xeu mysql.service
         error "MySQL service failed to start"
-    }
+    fi
     
+    log "Enabling MySQL service..."
     systemctl enable mysql || warn "Failed to enable MySQL service"
 fi
 
