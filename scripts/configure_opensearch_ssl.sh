@@ -136,7 +136,31 @@ cd "$SECURITY_TOOLS_DIR"
 log "Setting permissions for security tools..."
 chmod +x securityadmin.sh
 
+# 先禁用安全插件以初始化配置
+log "Temporarily disabling security plugin for initialization..."
+sed -i 's/plugins.security.disabled: false/plugins.security.disabled: true/' "$CONFIG_DIR/opensearch.yml"
+
+# 重启 OpenSearch 使配置生效
+log "Restarting OpenSearch with security disabled..."
+systemctl restart opensearch
+
+# 等待服务启动
+log "Waiting for OpenSearch to start..."
+for i in {1..30}; do
+    if curl -s "http://localhost:9200/_cluster/health" | grep -q '"status":\s*"green"'; then
+        log "OpenSearch started successfully"
+        break
+    fi
+    if [ $i -eq 30 ]; then
+        error "OpenSearch failed to start. Please check the logs."
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
+
 # 运行 securityadmin.sh 来初始化安全配置
+log "Running security initialization..."
 ./securityadmin.sh -cd "$SECURITY_CONFIG_DIR" \
     -icl -nhnv \
     -cacert "$CERT_DIR/root-ca.pem" \
@@ -144,8 +168,16 @@ chmod +x securityadmin.sh
     -key "$CERT_DIR/node-key.pem" \
     -h localhost
 
+# 重新启用安全插件
+log "Re-enabling security plugin..."
+sed -i 's/plugins.security.disabled: true/plugins.security.disabled: false/' "$CONFIG_DIR/opensearch.yml"
+
 # 返回原目录
 cd -
+
+# 重启 OpenSearch 以启用安全插件
+log "Restarting OpenSearch with security enabled..."
+systemctl restart opensearch
 
 # 更新 OpenSearch 配置
 log "Updating OpenSearch configuration..."
@@ -160,14 +192,21 @@ discovery.type: single-node
 
 # 基本配置
 bootstrap.memory_lock: false
-plugins.query.datasources.encryption.masterkey: "your-master-key-here"
+plugins.query.datasources.encryption.masterkey: "magento-master-key-123"
+
+# 自动导入悬空索引
+gateway.auto_import_dangling_indices: true
 
 # 安全配置
 plugins.security.disabled: false
+plugins.security.ssl.transport.enabled: true
 plugins.security.ssl.transport.pemcert_filepath: certificates/node.pem
 plugins.security.ssl.transport.pemkey_filepath: certificates/node-key.pem
 plugins.security.ssl.transport.pemtrustedcas_filepath: certificates/root-ca.pem
-plugins.security.ssl.http.enabled: false
+plugins.security.ssl.http.enabled: true
+plugins.security.ssl.http.pemcert_filepath: certificates/node.pem
+plugins.security.ssl.http.pemkey_filepath: certificates/node-key.pem
+plugins.security.ssl.http.pemtrustedcas_filepath: certificates/root-ca.pem
 plugins.security.ssl.transport.enforce_hostname_verification: false
 plugins.security.allow_default_init_securityindex: true
 plugins.security.authcz.admin_dn:
@@ -176,6 +215,9 @@ plugins.security.audit.type: internal_opensearch
 plugins.security.enable_snapshot_restore_privilege: true
 plugins.security.check_snapshot_restore_write_privileges: true
 plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
+
+# 配置覆盖设置
+plugins.plugin_name.config_overrides.enabled: true
 EOF
 
 # 设置权限
@@ -188,45 +230,18 @@ cp -r /usr/local/opensearch/plugins/opensearch-security/securityconfig/* "$SECUR
 chown -R opensearch:opensearch "$SECURITY_CONFIG_DIR"
 chmod 600 "$SECURITY_CONFIG_DIR"/*
 
-# 重启 OpenSearch 并等待初始化完成
-log "Restarting OpenSearch..."
-systemctl restart opensearch
-
-# 等待服务启动
-log "Waiting for OpenSearch to start..."
-for i in {1..60}; do
-    if curl -s -u "admin:admin" "http://localhost:9200/_cluster/health" | grep -q '"status":\s*"green"'; then
-        log "OpenSearch started successfully with security enabled"
-        break
-    fi
-    if [ $i -eq 5 ]; then
-        log "Checking OpenSearch logs..."
-        tail -n 50 /var/log/opensearch/magento-cluster.log || true
-        log "Checking OpenSearch status..."
-        systemctl status opensearch || true
-        log "Checking security plugin status..."
-        curl -s -u "admin:admin" "http://localhost:9200/_plugins/_security/health" || true
-    fi
-    if [ $i -eq 60 ]; then
-        error "OpenSearch failed to start. Please check the logs."
-    fi
-    echo -n "."
-    sleep 2
-done
-echo ""
-
 # 验证节点是否正常运行
 log "Verifying node status..."
-NODE_COUNT=$(curl -s -u "admin:admin" "http://localhost:9200/_cat/nodes?h=ip" | wc -l)
+NODE_COUNT=$(curl -s -k -u "admin:admin" "https://localhost:9200/_cat/nodes?h=ip" | wc -l)
 if [ "$NODE_COUNT" -eq 0 ]; then
     error "No alive nodes found in the cluster. Please check OpenSearch configuration."
 fi
 
 # 创建新用户
 log "Creating user..."
-curl -X PUT "http://localhost:9200/_plugins/_security/api/internalusers/$USERNAME" \
+curl -X PUT "https://localhost:9200/_plugins/_security/api/internalusers/$USERNAME" \
     -H 'Content-Type: application/json' \
-    -u "admin:admin" \
+    -k -u "admin:admin" \
     -d "{
   \"password\": \"$PASSWORD\",
   \"backend_roles\": [\"admin\"],
@@ -238,24 +253,24 @@ sleep 5
 
 # 验证用户创建是否成功
 log "Verifying user creation..."
-RESPONSE=$(curl -s -w "%{http_code}" -o /dev/null -u "$USERNAME:$PASSWORD" "http://localhost:9200/_cat/nodes?v")
+RESPONSE=$(curl -s -k -w "%{http_code}" -o /dev/null -u "$USERNAME:$PASSWORD" "https://localhost:9200/_cat/nodes?v")
 if [ "$RESPONSE" = "200" ]; then
     log "User verification successful!"
 else
     warn "User verification failed with status code: $RESPONSE"
     warn "Checking with admin credentials..."
-    curl -v -u "admin:admin" "http://localhost:9200/_plugins/_security/api/internalusers/$USERNAME"
+    curl -v -k -u "admin:admin" "https://localhost:9200/_plugins/_security/api/internalusers/$USERNAME"
 fi
 
 # 测试连接
 log "Testing connection..."
-curl -X GET "http://localhost:9200/_cat/nodes?v" -u "$USERNAME:$PASSWORD"
+curl -X GET "https://localhost:9200/_cat/nodes?v" -k -u "$USERNAME:$PASSWORD"
 
-log "OpenSearch HTTP authentication configuration completed!"
+log "OpenSearch HTTPS authentication configuration completed!"
 log "To connect to OpenSearch, use the following credentials:"
 log "Username: $USERNAME"
 log "Password: $PASSWORD"
 log "Example curl command:"
-log "curl -X GET \"http://localhost:9200/_cat/nodes?v\" -u \"$USERNAME:$PASSWORD\""
+log "curl -X GET \"https://localhost:9200/_cat/nodes?v\" -k -u \"$USERNAME:$PASSWORD\""
 
 warn "Please make sure to update your Magento configuration with these credentials." 
