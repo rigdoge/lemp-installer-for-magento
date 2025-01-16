@@ -801,6 +801,14 @@ if [ "$SKIP_OPENSEARCH" != "true" ]; then
         log "Installing OpenSearch 2.12..."
         wget https://artifacts.opensearch.org/releases/bundle/opensearch/2.12.0/opensearch-2.12.0-linux-x64.tar.gz
         tar -xzf opensearch-2.12.0-linux-x64.tar.gz
+
+        # 检查并处理目标目录
+        if [ -d "/usr/local/opensearch" ]; then
+            log "Backing up existing OpenSearch directory..."
+            mv /usr/local/opensearch /usr/local/opensearch.bak.$(date +%Y%m%d_%H%M%S)
+        fi
+
+        # 移动解压后的目录
         mv opensearch-2.12.0 /usr/local/opensearch
         rm opensearch-2.12.0-linux-x64.tar.gz
 
