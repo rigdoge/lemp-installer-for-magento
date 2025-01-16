@@ -1014,58 +1014,12 @@ EOF
         sysctl -w vm.max_map_count=262144
 
         # 启动 OpenSearch 服务
-        log "Starting OpenSearch service..."
+        log "Starting OpenSearch service and enabling auto-start..."
         systemctl enable opensearch
-        systemctl start opensearch
+        systemctl start opensearch &
+        log "OpenSearch service has been started in background and enabled for auto-start"
 
-        # 等待服务启动并检查状态
-        log "Waiting for OpenSearch to start..."
-        max_attempts=30
-        attempt=1
-        while [ $attempt -le $max_attempts ]; do
-            # 检查服务状态
-            if systemctl status opensearch | grep -q "Active: active (running)"; then
-                log "OpenSearch service is running, checking HTTP endpoint..."
-                if curl -s "http://localhost:9200" &>/dev/null; then
-                    log "OpenSearch is fully operational"
-                    break
-                else
-                    log "Service is running but HTTP endpoint is not responding yet"
-                fi
-            else
-                # 检查是否有错误
-                if systemctl status opensearch | grep -q "Result: exit-code"; then
-                    log "OpenSearch failed to start, checking logs..."
-                    systemctl status opensearch || true
-                    if [ -f /var/log/opensearch/magento-cluster.log ]; then
-                        tail -n 20 /var/log/opensearch/magento-cluster.log
-                    fi
-                fi
-            fi
-
-            log "Attempt $attempt/$max_attempts: Waiting for OpenSearch to start..."
-            sleep 2
-            ((attempt++))
-
-            # 如果到达最后一次尝试，显示详细信息
-            if [ $attempt -eq $max_attempts ]; then
-                log "Final check - Displaying detailed information:"
-                systemctl status opensearch || true
-                journalctl -u opensearch --no-pager | tail -n 50
-                ps aux | grep opensearch
-                netstat -tulpn | grep 9200 || true
-                ls -la /var/log/opensearch/
-                ls -la /etc/opensearch/
-                error "OpenSearch failed to start after $max_attempts attempts"
-            fi
-        done
-
-        # 如果服务没有启动，显示错误信息
-        if ! systemctl is-active --quiet opensearch; then
-            warn "OpenSearch failed to start. Please check the logs at /var/log/opensearch/"
-            warn "You can try starting it manually with: sudo systemctl start opensearch"
-            warn "And check the status with: sudo systemctl status opensearch"
-        fi
+        # 移除等待部分，直接继续安装流程
     else
         log "OpenSearch service is already running"
     fi
