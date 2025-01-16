@@ -100,7 +100,7 @@ MYSQL_ROOT_PASSWORD="magento"
 debconf-set-selections <<< "mysql-community-server mysql-community-server/root-pass password ${MYSQL_ROOT_PASSWORD}"
 debconf-set-selections <<< "mysql-community-server mysql-community-server/re-root-pass password ${MYSQL_ROOT_PASSWORD}"
 # 安装 MySQL
-DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server mysql-client || error "Failed to install MySQL 8.0"
+DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server mysql-community-client || error "Failed to install MySQL 8.0"
 
 # 启动 MySQL
 systemctl start mysql
