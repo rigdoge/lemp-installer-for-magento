@@ -391,7 +391,7 @@ if ! command -v composer &> /dev/null; then
         rm composer-setup.php
         error "Composer installer corrupt"
     fi
-    php composer-setup.php --version=2.7.1 --install-dir=/usr/local/bin --filename=composer
+    php composer-setup.php --version=2.7.1 --install-dir=/usr/local/bin --filename=composer --no-interaction
     rm composer-setup.php
 else
     log "Composer is already installed"
