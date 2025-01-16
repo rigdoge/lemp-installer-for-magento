@@ -118,8 +118,8 @@ else
     
     # 添加 MariaDB 仓库
     log "Adding MariaDB repository..."
-    wget -qO- https://mariadb.org/mariadb_release_signing_key.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/mariadb.gpg
-    echo "deb [arch=amd64,arm64] https://mirror.mariadb.org/repo/10.6/debian $(lsb_release -sc) main" > /etc/apt/sources.list.d/mariadb.list
+    curl -LsS https://mariadb.org/mariadb_release_signing_key.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/mariadb.gpg
+    echo "deb [arch=amd64,arm64] https://mirrors.aliyun.com/mariadb/repo/10.6/debian $(lsb_release -sc) main" > /etc/apt/sources.list.d/mariadb.list
     
     # 安装 MariaDB
     apt-get update || error "Failed to update package lists after adding MariaDB repository"
