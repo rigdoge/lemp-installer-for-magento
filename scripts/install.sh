@@ -95,9 +95,45 @@ apt-get update
 
 # 第2阶段：安装数据库
 log "Stage 2: Installing MySQL..."
-apt-get install -y mysql-server=8.0.* || error "Failed to install MySQL 8.0"
+# 预配置 MySQL root 密码
+MYSQL_ROOT_PASSWORD="magento"
+debconf-set-selections <<< "mysql-community-server mysql-community-server/root-pass password ${MYSQL_ROOT_PASSWORD}"
+debconf-set-selections <<< "mysql-community-server mysql-community-server/re-root-pass password ${MYSQL_ROOT_PASSWORD}"
+# 安装 MySQL
+DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server mysql-client || error "Failed to install MySQL 8.0"
+
+# 启动 MySQL
 systemctl start mysql
 systemctl enable mysql
+
+# 配置 MySQL
+log "Configuring MySQL..."
+cat > /etc/mysql/conf.d/magento.cnf <<EOF
+[mysqld]
+innodb_buffer_pool_size = 1G
+innodb_log_file_size = 256M
+max_allowed_packet = 256M
+innodb_file_per_table = 1
+innodb_open_files = 400
+innodb_io_capacity = 400
+innodb_flush_method = O_DIRECT
+innodb_thread_concurrency = 4
+innodb_lock_wait_timeout = 50
+transaction-isolation = READ-COMMITTED
+EOF
+
+# 重启 MySQL 使配置生效
+systemctl restart mysql
+
+# 设置 MySQL 安全配置
+log "Securing MySQL installation..."
+mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
+DELETE FROM mysql.user WHERE User='';
+DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
+DROP DATABASE IF EXISTS test;
+DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+FLUSH PRIVILEGES;
+EOF
 
 # 第3阶段：安装PHP和扩展
 log "Stage 3: Installing PHP and extensions..."
