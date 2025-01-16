@@ -548,8 +548,100 @@ if [[ ! -d "/usr/local/opensearch" ]]; then
     tar -xzf opensearch-2.12.0-linux-x64.tar.gz
     mv opensearch-2.12.0 /usr/local/opensearch
     rm opensearch-2.12.0-linux-x64.tar.gz
+
+    # 创建 OpenSearch 用户和组
+    log "Creating OpenSearch user and group..."
+    useradd -r -s /sbin/nologin opensearch || true
+    chown -R opensearch:opensearch /usr/local/opensearch
+
+    # 创建数据和日志目录
+    mkdir -p /var/lib/opensearch /var/log/opensearch
+    chown -R opensearch:opensearch /var/lib/opensearch /var/log/opensearch
+
+    # 配置 OpenSearch
+    log "Configuring OpenSearch..."
+    cat > /usr/local/opensearch/config/opensearch.yml <<EOF
+cluster.name: magento-cluster
+node.name: node-1
+path.data: /var/lib/opensearch
+path.logs: /var/log/opensearch
+network.host: 127.0.0.1
+http.port: 9200
+discovery.type: single-node
+EOF
+
+    # 创建系统服务
+    log "Creating OpenSearch service..."
+    cat > /etc/systemd/system/opensearch.service <<EOF
+[Unit]
+Description=OpenSearch
+Documentation=https://opensearch.org/docs/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+RuntimeDirectory=opensearch
+PrivateTmp=true
+Environment=OPENSEARCH_HOME=/usr/local/opensearch
+Environment=OPENSEARCH_PATH_CONF=/usr/local/opensearch/config
+Environment=JAVA_HOME=/usr/local/opensearch/jdk
+Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
+Environment=ES_JAVA_OPTS="-Xms1g -Xmx1g"
+
+User=opensearch
+Group=opensearch
+
+ExecStart=/usr/local/opensearch/bin/opensearch
+
+# Specifies the maximum file descriptor number
+LimitNOFILE=65535
+LimitNPROC=4096
+LimitAS=infinity
+LimitFSIZE=infinity
+
+# Disable timeout logic
+TimeoutStopSec=0
+
+# SIGTERM signal is used to stop OpenSearch
+KillSignal=SIGTERM
+
+# Send the signal only to the JVM rather than its control group
+KillMode=process
+
+# Java process is never killed
+SendSIGKILL=no
+
+# When a JVM receives a SIGTERM signal it exits with code 143
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # 重新加载 systemd 配置
+    systemctl daemon-reload
+
+    # 启动 OpenSearch 服务
+    log "Starting OpenSearch service..."
+    systemctl start opensearch
+    systemctl enable opensearch
+
+    # 等待服务启动
+    log "Waiting for OpenSearch to start..."
+    for i in {1..60}; do
+        if curl -s "http://localhost:9200/_cluster/health" &>/dev/null; then
+            log "OpenSearch is running"
+            break
+        fi
+        sleep 2
+    done
 else
     log "OpenSearch is already installed"
+    if ! systemctl is-active --quiet opensearch; then
+        log "Starting OpenSearch service..."
+        systemctl start opensearch
+    fi
 fi
 
 # 第7阶段：安装管理工具
