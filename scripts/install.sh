@@ -94,18 +94,27 @@ log "Adding required repositories..."
 
 # 清理之前的数据库安装
 log "Cleaning up previous database installations..."
-# 停止可能运行的数据库服务
-systemctl stop mysql mysqld mariadb || true
 
-# 清理旧的包和配置
-DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y mysql* mariadb* percona* || true
+# 停止所有可能运行的数据库服务
+log "Stopping database services..."
+systemctl stop mysql mysqld mariadb percona-server || true
+
+# 清理所有数据库相关的包
+log "Removing database packages..."
+DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y \
+    mysql* \
+    mariadb* \
+    percona* || true
+
+# 清理依赖
 apt-get autoremove -y
 apt-get autoclean
 
-# 清理配置和数据文件
+# 清理数据库文件和配置
+log "Cleaning up database files and configurations..."
 rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
-rm -f /etc/apt/sources.list.d/mysql.list /etc/apt/sources.list.d/percona*.list
-rm -f /usr/share/keyrings/mysql* /usr/share/keyrings/percona*
+rm -f /etc/apt/sources.list.d/{mysql,mariadb,percona}*.list
+rm -f /usr/share/keyrings/{mysql,mariadb,percona}*
 
 # MySQL 安装和配置部分
 if [[ "$ARCH" == "x86_64" || "$ARCH" == "aarch64" ]]; then
