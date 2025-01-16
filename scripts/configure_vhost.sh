@@ -80,19 +80,13 @@ mkdir -p /etc/php/8.2/fpm/pool.d
 chown root:root /etc/php/8.2/fpm/pool.d
 chmod 755 /etc/php/8.2/fpm/pool.d
 
-# 停止默认的 www 池
-if [ -f "/etc/php/8.2/fpm/pool.d/www.conf" ]; then
-    log "Disabling default PHP-FPM pool..."
-    mv /etc/php/8.2/fpm/pool.d/www.conf /etc/php/8.2/fpm/pool.d/www.conf.disabled
-fi
-
 cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
-user = $NGINX_USER
-group = $NGINX_USER
+user = www-data
+group = www-data
 listen = /run/php/php8.2-fpm-magento.sock
-listen.owner = $NGINX_USER
-listen.group = $NGINX_USER
+listen.owner = www-data
+listen.group = www-data
 listen.mode = 0660
 
 pm = dynamic
@@ -125,35 +119,29 @@ EOF
 # 确保日志目录存在并设置正确的权限
 log "Setting up log directories..."
 mkdir -p /var/log/php-fpm
-chown -R $NGINX_USER:$NGINX_USER /var/log/php-fpm
+chown -R www-data:www-data /var/log/php-fpm
 chmod 755 /var/log/php-fpm
 touch /var/log/php-fpm/magento.error.log
-chown $NGINX_USER:$NGINX_USER /var/log/php-fpm/magento.error.log
+chown www-data:www-data /var/log/php-fpm/magento.error.log
 chmod 644 /var/log/php-fpm/magento.error.log
+
+# 创建 PHP-FPM socket 目录
+log "Creating PHP-FPM socket directory..."
+mkdir -p /run/php
+chown www-data:www-data /run/php
+chmod 755 /run/php
 
 # 设置配置文件权限
 log "Setting PHP-FPM configuration file permissions..."
 chown root:root "$PHP_FPM_POOL_CONF"
 chmod 644 "$PHP_FPM_POOL_CONF"
 
-# 创建 PHP-FPM 日志目录
-log "Creating PHP-FPM log directory..."
-mkdir -p /var/log/php-fpm
-chown www-data:www-data /var/log/php-fpm
-chmod 755 /var/log/php-fpm
-
-# 创建 PHP-FPM socket 目录
-log "Creating PHP-FPM socket directory..."
-mkdir -p /run/php
-chown $NGINX_USER:$NGINX_USER /run/php
-chmod 755 /run/php
-
-# 添加调试信息
-log "PHP-FPM Configuration:"
-log "Pool directory contents:"
-ls -la /etc/php/8.2/fpm/pool.d/
-log "Pool configuration:"
-cat "$PHP_FPM_POOL_CONF"
+# 添加 Nginx 用户到 www-data 组
+log "Adding Nginx user to www-data group..."
+NGINX_USER=$(ps aux | grep "nginx: master" | grep -v grep | awk '{print $1}')
+if [ -n "$NGINX_USER" ] && [ "$NGINX_USER" != "www-data" ]; then
+    usermod -a -G www-data "$NGINX_USER"
+fi
 
 # 创建必要的目录
 log "Creating Nginx configuration directories..."
