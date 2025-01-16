@@ -58,10 +58,13 @@ log "Adding required repositories..."
 
 # MySQL 8.0 Repository
 log "Adding MySQL repository..."
-# 下载并导入 MySQL GPG key
-curl -fsSL https://repo.mysql.com/RPM-GPG-KEY-mysql-2022 | gpg --dearmor -o /usr/share/keyrings/mysql.gpg
-# 添加 MySQL 仓库
-echo "deb [signed-by=/usr/share/keyrings/mysql.gpg] http://repo.mysql.com/apt/debian $(lsb_release -sc) mysql-8.0" > /etc/apt/sources.list.d/mysql.list
+# 下载 MySQL APT 配置包
+wget https://dev.mysql.com/get/mysql-apt-config_0.8.24-1_all.deb
+# 预配置 MySQL APT 配置包
+echo "mysql-apt-config mysql-apt-config/select-server select mysql-8.0" | debconf-set-selections
+echo "mysql-apt-config mysql-apt-config/select-product select Ok" | debconf-set-selections
+DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.24-1_all.deb
+rm mysql-apt-config_0.8.24-1_all.deb
 
 # 更新包列表
 apt-get update
