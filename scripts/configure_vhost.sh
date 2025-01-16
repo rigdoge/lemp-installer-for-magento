@@ -32,8 +32,12 @@ if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root"
 fi
 
+# 获取脚本所在目录的绝对路径
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+
 # 检查模板文件是否存在
-TEMPLATE_FILE="../templates/magento.conf.template"
+TEMPLATE_FILE="$PROJECT_ROOT/templates/magento.conf.template"
 if [ ! -f "$TEMPLATE_FILE" ]; then
     error "Template file not found: $TEMPLATE_FILE"
 fi
