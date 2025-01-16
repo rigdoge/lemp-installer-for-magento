@@ -92,22 +92,36 @@ pm.max_children = 50
 pm.start_servers = 5
 pm.min_spare_servers = 5
 pm.max_spare_servers = 35
+pm.max_requests = 500
 
+; 增加调试信息
+catch_workers_output = yes
+php_flag[display_errors] = on
+php_admin_value[error_log] = /var/log/php-fpm/magento.error.log
+php_admin_flag[log_errors] = on
+php_admin_value[error_reporting] = E_ALL
+
+; PHP 设置
 php_value[memory_limit] = 756M
 php_value[max_execution_time] = 18000
 php_value[session.auto_start] = Off
 php_value[suhosin.session.cryptua] = Off
 
-php_value[error_log] = /var/log/php-fpm/magento-error.log
-php_flag[log_errors] = on
-
-catch_workers_output = yes
-php_flag[display_errors] = on
-php_admin_value[error_log] = /var/log/php-fpm/\$pool.error.log
-php_admin_flag[log_errors] = on
+; 进程管理
+process.dumpable = yes
+request_terminate_timeout = 600s
 
 security.limit_extensions = .php
 EOF
+
+# 确保日志目录存在并设置正确的权限
+log "Setting up log directories..."
+mkdir -p /var/log/php-fpm
+chown -R www-data:www-data /var/log/php-fpm
+chmod 755 /var/log/php-fpm
+touch /var/log/php-fpm/magento.error.log
+chown www-data:www-data /var/log/php-fpm/magento.error.log
+chmod 644 /var/log/php-fpm/magento.error.log
 
 # 设置配置文件权限
 log "Setting PHP-FPM configuration file permissions..."
