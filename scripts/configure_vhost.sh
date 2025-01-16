@@ -131,26 +131,92 @@ server {
     
     root $MAGENTO_ROOT/pub;
     index index.php;
+    autoindex off;
+    charset UTF-8;
     
     access_log /var/log/nginx/$DOMAIN.access.log;
-    error_log /var/log/nginx/$DOMAIN.error.log;
-    
+    error_log /var/log/nginx/$DOMAIN.error.log debug;
+
+    # Magento mode
+    set \$MAGE_MODE $MAGENTO_MODE;
+
+    # Static files location
+    location /static/ {
+        # Remove signature of the static files that is used to overcome the browser cache
+        location ~ ^/static/version {
+            rewrite ^/static/(version\d*/)?(.*)$ /static/\$2 last;
+        }
+
+        location ~* \.(ico|jpg|jpeg|png|gif|svg|js|css|swf|eot|ttf|otf|woff|woff2)$ {
+            add_header Cache-Control "public";
+            expires +1y;
+            if (!-f \$request_filename) {
+                rewrite ^/static/(version\d*/)?(.*)$ /static.php?resource=\$2 break;
+            }
+        }
+
+        location ~* \.(zip|gz|gzip|bz2|csv|xml)$ {
+            add_header Cache-Control "no-store";
+            expires off;
+            if (!-f \$request_filename) {
+                rewrite ^/static/(version\d*/)?(.*)$ /static.php?resource=\$2 break;
+            }
+        }
+
+        if (!-f \$request_filename) {
+            rewrite ^/static/(version\d*/)?(.*)$ /static.php?resource=\$2 break;
+        }
+    }
+
+    # Media files location
+    location /media/ {
+        try_files \$uri \$uri/ /get.php\$is_args\$args;
+
+        location ~* \.(ico|jpg|jpeg|png|gif|svg|js|css|swf|eot|ttf|otf|woff|woff2)$ {
+            add_header Cache-Control "public";
+            expires +1y;
+            try_files \$uri \$uri/ /get.php\$is_args\$args;
+        }
+
+        location ~* \.(zip|gz|gzip|bz2|csv|xml)$ {
+            add_header Cache-Control "no-store";
+            expires off;
+            try_files \$uri \$uri/ /get.php\$is_args\$args;
+        }
+    }
+
+    # PHP entry point for main application
+    location / {
+        try_files \$uri \$uri/ /index.php\$is_args\$args;
+    }
+
+    # PHP entry point for all PHP files
     location ~ \.php$ {
         try_files \$uri =404;
         fastcgi_pass 127.0.0.1:9000;
         fastcgi_index index.php;
         fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-        include fastcgi_params;
+        fastcgi_param MAGE_MODE \$MAGE_MODE;
         
-        # 添加调试信息
-        fastcgi_intercept_errors on;
+        # Magento uses the HTTPS env var to detects whether to generate https URLs
+        fastcgi_param HTTPS off;
+        
+        include fastcgi_params;
+        fastcgi_param PHP_VALUE "memory_limit=756M \n max_execution_time=18000";
+        fastcgi_read_timeout 600s;
+        fastcgi_connect_timeout 600s;
         fastcgi_buffer_size 128k;
         fastcgi_buffers 4 256k;
         fastcgi_busy_buffers_size 256k;
     }
 
-    location / {
-        try_files \$uri \$uri/ /index.php?\$args;
+    # Deny access to sensitive files
+    location ~ /\. {
+        deny all;
+    }
+
+    location ~* (?:\.(?:bak|config|sql|fla|psd|ini|log|sh|inc|swp|dist)|~)$ {
+        deny all;
     }
 }
 EOF
