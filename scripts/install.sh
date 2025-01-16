@@ -58,30 +58,37 @@ log "Adding required repositories..."
 
 # MySQL 8.0 Repository
 log "Adding MySQL repository..."
-# 下载 MySQL APT 配置包
-wget https://dev.mysql.com/get/mysql-apt-config_0.8.24-1_all.deb
-# 预配置 MySQL APT 配置包
-echo "mysql-apt-config mysql-apt-config/select-server select mysql-8.0" | debconf-set-selections
-echo "mysql-apt-config mysql-apt-config/select-product select Ok" | debconf-set-selections
-DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.24-1_all.deb
-rm mysql-apt-config_0.8.24-1_all.deb
+# 下载 MySQL 服务器和客户端包
+wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-server_8.0.36-1debian12_amd64.deb
+wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-client_8.0.36-1debian12_amd64.deb
+wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-common_8.0.36-1debian12_amd64.deb
 
-# 更新包列表
-apt-get update
+# 安装依赖
+apt-get install -y libaio1 libmecab2 libsasl2-2
+
+# 安装 MySQL 包
+log "Installing MySQL packages..."
+dpkg -i mysql-common_8.0.36-1debian12_amd64.deb
+dpkg -i mysql-client_8.0.36-1debian12_amd64.deb
+dpkg -i mysql-server_8.0.36-1debian12_amd64.deb || true
+
+# 修复可能的依赖问题
+apt-get install -f -y
+
+# 清理下载的文件
+rm mysql-*_8.0.36-1debian12_amd64.deb
 
 # 第2阶段：安装数据库
 log "Stage 2: Installing MySQL..."
 # 预配置 MySQL root 密码
 MYSQL_ROOT_PASSWORD="magento"
-echo "mysql-server mysql-server/root_password password ${MYSQL_ROOT_PASSWORD}" | debconf-set-selections
-echo "mysql-server mysql-server/root_password_again password ${MYSQL_ROOT_PASSWORD}" | debconf-set-selections
-
-# 安装 MySQL
-DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server mysql-client || error "Failed to install MySQL 8.0"
 
 # 启动 MySQL
 systemctl start mysql
 systemctl enable mysql
+
+# 设置 root 密码
+mysqladmin -u root password "${MYSQL_ROOT_PASSWORD}"
 
 # 配置 MySQL
 log "Configuring MySQL..."
