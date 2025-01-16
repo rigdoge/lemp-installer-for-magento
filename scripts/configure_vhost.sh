@@ -76,6 +76,16 @@ fi
 log "Configuring PHP-FPM pool..."
 PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
 
+# 创建日志目录
+log "Creating log directories..."
+mkdir -p /var/log/php-fpm
+chown $PHP_USER:$PHP_GROUP /var/log/php-fpm
+chmod 755 /var/log/php-fpm
+
+# 配置 PHP-FPM 主日志
+PHP_FPM_CONF="/etc/php/8.2/fpm/php-fpm.conf"
+sed -i 's|^error_log.*|error_log = /var/log/php-fpm/php-fpm.log|' "$PHP_FPM_CONF"
+
 cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
 user = $PHP_USER
@@ -96,8 +106,13 @@ php_value[max_execution_time] = 18000
 
 catch_workers_output = yes
 php_admin_flag[log_errors] = on
-php_admin_value[error_log] = /var/log/php-fpm/magento.error.log
+php_admin_value[error_log] = /var/log/php-fpm/magento-pool.error.log
 php_admin_value[display_errors] = Off
+
+; 添加更多的错误日志设置
+php_flag[display_startup_errors] = Off
+php_flag[log_errors] = On
+php_value[error_reporting] = E_ALL
 EOF
 
 # 检查并创建必要的目录和权限
@@ -162,10 +177,10 @@ nginx -t || true
 
 # 检查日志
 log "Checking error logs..."
-echo "PHP-FPM error log (main):"
-tail -n 20 /var/log/php-fpm.log || true
-echo "PHP-FPM error log (pool):"
-tail -n 20 /var/log/php-fpm/magento.error.log || true
+echo "PHP-FPM main error log:"
+tail -n 20 /var/log/php-fpm/php-fpm.log || true
+echo "PHP-FPM pool error log:"
+tail -n 20 /var/log/php-fpm/magento-pool.error.log || true
 echo "Nginx main error log:"
 tail -n 20 /var/log/nginx/error.log || true
 echo "Nginx virtual host error log:"
