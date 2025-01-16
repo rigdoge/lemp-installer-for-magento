@@ -908,9 +908,9 @@ indices.memory.index_buffer_size: 30%
 # 禁用安全插件
 plugins.security.disabled: true
 
-# 日志配置
-logger.level: INFO
-logger.action: INFO
+# 日志配置 - 减少日志输出
+logger.level: WARN
+logger.action: WARN
 EOF
 
         # 配置 JVM 选项
