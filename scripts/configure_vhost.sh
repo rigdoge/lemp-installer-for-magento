@@ -135,6 +135,10 @@ fi
 
 # 创建虚拟主机配置
 cat > "/etc/nginx/sites-available/$DOMAIN.conf" <<EOF
+upstream fastcgi_backend {
+    server unix:/run/php/php8.2-fpm-magento.sock;
+}
+
 server {
     listen 80;
     server_name $DOMAIN;
