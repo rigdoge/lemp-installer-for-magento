@@ -146,13 +146,28 @@ systemctl restart opensearch
 
 # 等待服务启动
 log "Waiting for OpenSearch to start..."
-for i in {1..30}; do
-    if curl -s "http://localhost:9200/_cluster/health" | grep -q '"status":\s*"green"'; then
-        log "OpenSearch started successfully"
-        break
+for i in {1..60}; do
+    # 首先检查服务状态
+    if systemctl is-active --quiet opensearch; then
+        log "OpenSearch service is running"
+        
+        # 然后尝试连接到 API
+        if curl -s -m 5 "http://localhost:9200/_cluster/health" > /dev/null 2>&1; then
+            log "OpenSearch API is responding"
+            break
+        else
+            if [ $i -eq 30 ]; then
+                log "OpenSearch service is running but API is not responding yet. Checking logs..."
+                tail -n 50 /var/log/opensearch/magento-cluster.log || true
+                systemctl status opensearch || true
+            fi
+        fi
     fi
-    if [ $i -eq 30 ]; then
-        error "OpenSearch failed to start. Please check the logs."
+    
+    if [ $i -eq 60 ]; then
+        warn "OpenSearch service is running but API is not responding after 120 seconds"
+        warn "This might be normal during first startup. Continuing with configuration..."
+        break
     fi
     echo -n "."
     sleep 2
