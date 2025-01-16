@@ -47,7 +47,11 @@ PHP_GROUP="doge"
 
 # 配置 Nginx 用户
 log "Configuring Nginx user..."
-sed -i "s/user www-data/user $PHP_USER $PHP_GROUP/" /etc/nginx/nginx.conf
+sed -i 's/^user  .*$/user  '"$PHP_USER"' '"$PHP_GROUP"';/' /etc/nginx/nginx.conf
+
+# 确认更改
+log "Nginx user configuration:"
+grep "^user" /etc/nginx/nginx.conf
 
 # 配置 PHP-FPM 池
 log "Configuring PHP-FPM pool..."
