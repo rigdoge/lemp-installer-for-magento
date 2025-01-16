@@ -81,7 +81,7 @@ DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.29-1_all.deb
 rm mysql-apt-config_0.8.29-1_all.deb
 
 # 更新包列表
-apt-get update
+apt-get update || error "Failed to update package lists after adding MySQL repository"
 
 # 第2阶段：安装数据库
 log "Stage 2: Installing MySQL..."
