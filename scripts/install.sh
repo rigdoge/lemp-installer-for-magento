@@ -332,17 +332,19 @@ systemctl restart mysql || error "Failed to restart MySQL"
 
 # 设置数据库安全配置
 log "Securing database installation..."
-if mysql -u root -p"${DB_ROOT_PASSWORD}" <<EOF
+if [ "$SKIP_MYSQL" != "true" ]; then
+    if mysql --connect-timeout=2 -u root -p"${DB_ROOT_PASSWORD}" <<EOF
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
 DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 EOF
-then
-    log "MySQL security configuration completed successfully"
-else
-    error "Failed to configure MySQL security settings"
+    then
+        log "MySQL security configuration completed successfully"
+    else
+        error "Failed to configure MySQL security settings"
+    fi
 fi
 
 # 第3阶段：安装PHP和扩展
