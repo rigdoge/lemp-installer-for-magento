@@ -59,6 +59,13 @@ if [ -f "$CONFIG_DIR/opensearch.yml" ]; then
     log "Backed up existing OpenSearch configuration"
 fi
 
+# 检查并创建日志目录
+log "Checking log directory..."
+LOG_DIR="/var/log/opensearch"
+mkdir -p "$LOG_DIR"
+chown opensearch:opensearch "$LOG_DIR"
+chmod 750 "$LOG_DIR"
+
 # 更新 OpenSearch 配置
 log "Updating OpenSearch configuration..."
 cat > "$CONFIG_DIR/opensearch.yml" <<EOF
@@ -71,7 +78,7 @@ http.port: 9200
 discovery.type: single-node
 
 # 安全配置
-plugins.security.disabled: false
+plugins.security.disabled: true
 plugins.security.ssl.http.enabled: false
 plugins.security.allow_default_init_securityindex: true
 plugins.security.allow_unsafe_democertificates: true
@@ -79,6 +86,9 @@ plugins.security.audit.type: internal_opensearch
 plugins.security.enable_snapshot_restore_privilege: true
 plugins.security.check_snapshot_restore_write_privileges: true
 plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
+
+# JVM 配置
+bootstrap.memory_lock: false
 EOF
 
 # 设置权限
@@ -99,7 +109,7 @@ _meta:
 
 # 默认管理员用户
 admin:
-  hash: "\$2y\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  hash: "\$2a\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
   reserved: true
   backend_roles:
   - "admin"
@@ -107,7 +117,7 @@ admin:
 
 # 新用户
 $USERNAME:
-  hash: "\$2y\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  hash: "\$2a\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
   reserved: false
   backend_roles:
   - "admin"
@@ -169,8 +179,12 @@ systemctl restart opensearch
 # 等待服务启动并检查状态
 log "Waiting for OpenSearch to start..."
 for i in {1..30}; do
-    if curl -s -u "admin:admin" "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+    if curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
         break
+    fi
+    if [ $i -eq 5 ]; then
+        log "Checking OpenSearch logs..."
+        tail -n 50 /var/log/opensearch/magento-cluster.log || true
     fi
     echo -n "."
     sleep 2
@@ -178,12 +192,25 @@ done
 echo ""
 
 # 检查服务状态
-if ! curl -s -u "admin:admin" "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+if ! curl -s "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
     warn "OpenSearch is not responding. Checking service status..."
-    systemctl status opensearch
-    journalctl -xeu opensearch
+    systemctl status opensearch || true
+    echo "Last 50 lines of OpenSearch log:"
+    tail -n 50 /var/log/opensearch/magento-cluster.log || true
+    echo "System memory status:"
+    free -h || true
+    echo "OpenSearch process status:"
+    ps aux | grep opensearch || true
     error "Failed to start OpenSearch. Please check the logs."
 fi
+
+# 启用安全插件
+log "Enabling security plugin..."
+sed -i 's/plugins.security.disabled: true/plugins.security.disabled: false/' "$CONFIG_DIR/opensearch.yml"
+systemctl restart opensearch
+
+# 等待服务重新启动
+sleep 10
 
 # 创建新用户
 log "Creating user..."
