@@ -799,8 +799,18 @@ if [ "$SKIP_OPENSEARCH" != "true" ]; then
     if ! systemctl is-active --quiet opensearch; then
         log "Installing OpenSearch..."
         log "Installing OpenSearch 2.12..."
-        wget https://artifacts.opensearch.org/releases/bundle/opensearch/2.12.0/opensearch-2.12.0-linux-x64.tar.gz
-        tar -xzf opensearch-2.12.0-linux-x64.tar.gz
+        
+        # 根据架构选择不同的包
+        if [[ "$ARCH" == "x86_64" ]]; then
+            OPENSEARCH_PACKAGE="opensearch-2.12.0-linux-x64.tar.gz"
+        elif [[ "$ARCH" == "aarch64" ]]; then
+            OPENSEARCH_PACKAGE="opensearch-2.12.0-linux-arm64.tar.gz"
+        else
+            error "Unsupported architecture: $ARCH"
+        fi
+
+        wget "https://artifacts.opensearch.org/releases/bundle/opensearch/2.12.0/${OPENSEARCH_PACKAGE}"
+        tar -xzf "${OPENSEARCH_PACKAGE}"
 
         # 检查并处理目标目录
         if [ -d "/usr/local/opensearch" ]; then
@@ -810,7 +820,7 @@ if [ "$SKIP_OPENSEARCH" != "true" ]; then
 
         # 移动解压后的目录
         mv opensearch-2.12.0 /usr/local/opensearch
-        rm opensearch-2.12.0-linux-x64.tar.gz
+        rm "${OPENSEARCH_PACKAGE}"
 
         # 创建 OpenSearch 用户和组
         log "Creating OpenSearch user and group..."
@@ -913,46 +923,10 @@ EOF
         # 重新加载 systemd 配置
         systemctl daemon-reload
 
-        # 等待服务启动并检查日志
-        log "Waiting for OpenSearch to start..."
-        max_attempts=30
-        attempt=1
-        while [ $attempt -le $max_attempts ]; do
-            # 检查服务状态
-            if ! systemctl is-active --quiet opensearch; then
-                log "Checking OpenSearch service status..."
-                systemctl status opensearch || true
-            fi
-
-            # 检查日志文件
-            for logfile in /var/log/opensearch/*.log; do
-                if [ -f "$logfile" ]; then
-                    log "Latest log entries from $logfile:"
-                    tail -n 5 "$logfile"
-                fi
-            done
-
-            # 尝试连接到 OpenSearch
-            if curl -s "http://localhost:9200/_cluster/health" &>/dev/null; then
-                log "OpenSearch is running"
-                curl -s "http://localhost:9200" | grep version
-                break
-            fi
-
-            log "Attempt $attempt/$max_attempts: Still waiting..."
-            
-            # 如果尝试次数过多，提供更多信息
-            if [ $attempt -eq $max_attempts ]; then
-                warn "OpenSearch failed to start after $max_attempts attempts"
-                log "Checking system resources..."
-                free -h || true
-                df -h || true
-                error "OpenSearch failed to start. Please check the logs for more details"
-            fi
-
-            sleep 2
-            ((attempt++))
-        done
+        # 启动 OpenSearch 服务
+        log "Starting OpenSearch service..."
+        systemctl start opensearch
+        systemctl enable opensearch
     else
         log "OpenSearch service is already running"
     fi
