@@ -47,11 +47,16 @@ PHP_GROUP="doge"
 
 # 配置 Nginx 用户
 log "Configuring Nginx user..."
-sed -i 's/^user  .*$/user  '"$PHP_USER"' '"$PHP_GROUP"';/' /etc/nginx/nginx.conf
+if grep -q "^user" /etc/nginx/nginx.conf; then
+    sed -i "s/^user.*$/user $PHP_USER $PHP_GROUP;/" /etc/nginx/nginx.conf
+else
+    # 如果没有找到 user 指令，在文件开头添加
+    sed -i "1i user $PHP_USER $PHP_GROUP;" /etc/nginx/nginx.conf
+fi
 
 # 确认更改
-log "Nginx user configuration:"
-grep "^user" /etc/nginx/nginx.conf
+log "Verifying Nginx user configuration..."
+grep "^user" /etc/nginx/nginx.conf || error "Failed to set Nginx user"
 
 # 禁用默认的 www pool
 log "Disabling default www pool..."
@@ -88,32 +93,20 @@ php_admin_value[error_log] = /var/log/php-fpm/magento.error.log
 php_admin_value[display_errors] = Off
 EOF
 
-# 创建日志目录
-log "Creating PHP-FPM log directory..."
-mkdir -p /var/log/php-fpm
-chown $PHP_USER:$PHP_GROUP /var/log/php-fpm
-chmod 755 /var/log/php-fpm
+# 检查并创建必要的目录和权限
+log "Setting up directories and permissions..."
+directories=(
+    "/var/log/php-fpm"
+    "/run/php"
+    "/var/log/nginx"
+)
 
-# 创建 socket 目录
-log "Creating PHP-FPM socket directory..."
-mkdir -p /run/php
-chown $PHP_USER:$PHP_GROUP /run/php
-chmod 755 /run/php
-
-# 创建 Nginx 日志目录
-log "Creating Nginx log directory..."
-mkdir -p /var/log/nginx
-chown $PHP_USER:$PHP_GROUP /var/log/nginx
-chmod 755 /var/log/nginx
-
-# 设置目录权限（在后台执行）
-log "Setting directory permissions (running in background)..."
-{
-    chown -R $PHP_USER:$PHP_GROUP "$MAGENTO_ROOT"
-    find "$MAGENTO_ROOT" -type f -exec chmod 644 {} \;
-    find "$MAGENTO_ROOT" -type d -exec chmod 755 {} \;
-    log "Directory permissions update completed."
-} &
+for dir in "${directories[@]}"; do
+    mkdir -p "$dir"
+    chown $PHP_USER:$PHP_GROUP "$dir"
+    chmod 755 "$dir"
+    log "Directory $dir: owner=$(stat -c '%U:%G' "$dir"), perms=$(stat -c '%a' "$dir")"
+done
 
 # 配置 Nginx
 log "Configuring Nginx..."
