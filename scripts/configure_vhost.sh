@@ -153,10 +153,21 @@ nginx -t || true
 
 # 检查日志
 log "Checking error logs..."
-echo "PHP-FPM error log:"
+echo "PHP-FPM error log (main):"
+tail -n 20 /var/log/php-fpm.log || true
+echo "PHP-FPM error log (pool):"
 tail -n 20 /var/log/php-fpm/magento.error.log || true
-echo "Nginx error log:"
+echo "Nginx main error log:"
+tail -n 20 /var/log/nginx/error.log || true
+echo "Nginx virtual host error log:"
 tail -n 20 /var/log/nginx/$DOMAIN.error.log || true
+
+# 检查 systemd 日志
+log "Checking systemd service logs..."
+echo "PHP-FPM service status:"
+systemctl status php8.2-fpm || true
+echo "Nginx service status:"
+systemctl status nginx || true
 
 log "Configuration completed. Please check http://$DOMAIN"
 log "If you still see 502 Bad Gateway, please check the logs above for errors." 
