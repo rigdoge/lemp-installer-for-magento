@@ -242,112 +242,11 @@ if systemctl is-active --quiet mysql && mysqladmin ping &>/dev/null; then
     if [[ $MYSQL_VERSION == *"Percona"* ]]; then
         log "Percona MySQL is already installed and running properly"
         log "MySQL version: $MYSQL_VERSION"
+        SKIP_MYSQL=true
     else
-        warn "Running MySQL is not Percona Server"
-        error "Please backup your data and remove existing MySQL installation first"
-    fi
-else
-    # MySQL 安装和配置部分
-    if [[ "$ARCH" == "x86_64" || "$ARCH" == "aarch64" ]]; then
-        # 清理之前的数据库安装
-        log "Cleaning up previous database installations..."
-        
-        # 停止所有可能运行的数据库服务
-        log "Stopping database services..."
-        systemctl stop mysql mysqld mariadb percona-server || true
-        
-        # 清理所有数据库相关的包
-        log "Removing database packages..."
-        DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y \
-            mysql* \
-            mariadb* \
-            percona* || true
-        
-        # 清理依赖
-        apt-get autoremove -y
-        apt-get autoclean
-        
-        # 清理数据库文件和配置
-        log "Cleaning up database files and configurations..."
-        rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
-        rm -f /etc/apt/sources.list.d/{mysql,mariadb,percona}*.list
-        rm -f /usr/share/keyrings/{mysql,mariadb,percona}*
-        
-        # 添加 Percona 仓库
-        log "Adding Percona repository..."
-        if [ ! -f /etc/apt/sources.list.d/percona-release.list ]; then
-            curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb || error "Failed to download Percona release package"
-            dpkg -i percona-release_latest.generic_all.deb || error "Failed to install Percona release package"
-            rm percona-release_latest.generic_all.deb
-        fi
-
-        # 设置 Percona 仓库
-        log "Setting up Percona repository..."
-        percona-release setup ps80 || error "Failed to setup Percona repository"
-        
-        # 更新包列表
-        apt-get update || error "Failed to update package lists after adding Percona repository"
-        
-        # 安装 Percona MySQL
-        log "Installing Percona MySQL 8.0..."
-        DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            percona-server-client \
-            percona-server-server || error "Failed to install Percona MySQL 8.0"
-        
-        # 确保 MySQL 数据目录存在且权限正确
-        log "Setting up MySQL data directory..."
-        if [ -d "/var/lib/mysql" ]; then
-            log "Cleaning up existing MySQL data directory..."
-            rm -rf /var/lib/mysql/*
-        fi
-        
-        mkdir -p /var/lib/mysql
-        chown -R mysql:mysql /var/lib/mysql
-        chmod 750 /var/lib/mysql
-        
-        # 初始化 MySQL 数据目录
-        log "Initializing MySQL data directory..."
-        mysqld --initialize-insecure --user=mysql || error "Failed to initialize MySQL data directory"
-        
-        # 创建必要的目录和文件
-        log "Creating necessary directories and files..."
-        mkdir -p /var/run/mysqld
-        chown -R mysql:mysql /var/run/mysqld
-        chmod 755 /var/run/mysqld
-        
-        # 创建默认配置文件
-        log "Creating default MySQL configuration..."
-        cat > /etc/mysql/conf.d/mysql.cnf <<EOF
-[mysqld]
-user = mysql
-pid-file = /var/run/mysqld/mysqld.pid
-socket = /var/run/mysqld/mysqld.sock
-port = 3306
-basedir = /usr
-datadir = /var/lib/mysql
-tmpdir = /tmp
-bind-address = 127.0.0.1
-EOF
-        
-        # 启动 MySQL 服务
-        log "Starting MySQL service..."
-        if ! systemctl start mysql; then
-            error_code=$?
-            warn "Failed to start MySQL service (exit code: $error_code)"
-            log "Checking MySQL error log..."
-            if [ -f /var/log/mysql/error.log ]; then
-                tail -n 50 /var/log/mysql/error.log
-            fi
-            if [ -f /var/lib/mysql/*.err ]; then
-                log "Checking MySQL data directory error log..."
-                tail -n 50 /var/lib/mysql/*.err
-            fi
-            journalctl -xeu mysql.service
-            error "MySQL service failed to start"
-        fi
-        
-        log "Enabling MySQL service..."
-        systemctl enable mysql || warn "Failed to enable MySQL service"
+        log "MySQL is running but not Percona Server"
+        log "MySQL version: $MYSQL_VERSION"
+        SKIP_MYSQL=true
     fi
 fi
 
@@ -369,12 +268,15 @@ while [ $attempt -le $max_attempts ]; do
     ((attempt++))
 done
 
-# 设置 root 密码
-log "Setting database root password..."
-if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
-    log "MySQL root password set successfully"
-else
-    error "Failed to set MySQL root password"
+# 如果是新安装的 MySQL，设置 root 密码
+if [ "$SKIP_MYSQL" != "true" ]; then
+    # 设置 root 密码
+    log "Setting database root password..."
+    if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
+        log "MySQL root password set successfully"
+    else
+        error "Failed to set MySQL root password"
+    fi
 fi
 
 # 配置数据库
