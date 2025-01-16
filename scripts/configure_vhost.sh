@@ -76,11 +76,16 @@ fi
 log "Configuring PHP-FPM pool..."
 PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
 
-# 创建日志目录
-log "Creating log directories..."
+# 创建日志目录和文件
+log "Creating log directories and files..."
 mkdir -p /var/log/php-fpm
-chown $PHP_USER:$PHP_GROUP /var/log/php-fpm
+touch /var/log/php-fpm/php-fpm.log
+touch /var/log/php-fpm/magento-pool.error.log
+chown -R $PHP_USER:$PHP_GROUP /var/log/php-fpm
 chmod 755 /var/log/php-fpm
+chmod 644 /var/log/php-fpm/php-fpm.log
+chmod 644 /var/log/php-fpm/magento-pool.error.log
+log "PHP-FPM log files created and permissions set"
 
 # 配置 PHP-FPM 主日志
 PHP_FPM_CONF="/etc/php/8.2/fpm/php-fpm.conf"
