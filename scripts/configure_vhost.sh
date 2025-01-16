@@ -144,6 +144,13 @@ if ! grep -q "include /etc/nginx/sites-enabled/\*" /etc/nginx/nginx.conf; then
     sed -i '/http {/a \    include /etc/nginx/sites-enabled/*;' /etc/nginx/nginx.conf
 fi
 
+# 添加 FastCGI 缓存配置到 Nginx 主配置
+log "Adding FastCGI cache configuration..."
+NGINX_CONF="/etc/nginx/nginx.conf"
+if ! grep -q "fastcgi_cache_path" "$NGINX_CONF"; then
+    sed -i '/http {/a \    fastcgi_cache_path /tmp/nginx_cache levels=1:2 keys_zone=MAGENTO:100m inactive=60m;\n    fastcgi_cache_key "$request_method$request_uri";\n    fastcgi_cache_use_stale error timeout invalid_header http_500;\n    fastcgi_cache_valid 200 60m;' "$NGINX_CONF"
+fi
+
 # 创建配置文件
 log "Creating Nginx configuration for $DOMAIN..."
 CONF_FILE="/etc/nginx/sites-available/$DOMAIN.conf"
@@ -188,12 +195,6 @@ server {
         
         fastcgi_param MAGE_RUN_TYPE $MAGENTO_MODE;
     }
-    
-    # 添加 FastCGI 缓存设置
-    fastcgi_cache_path /tmp/nginx_cache levels=1:2 keys_zone=MAGENTO:100m inactive=60m;
-    fastcgi_cache_key "\$request_method\$request_uri";
-    fastcgi_cache_use_stale error timeout invalid_header http_500;
-    fastcgi_cache_valid 200 60m;
     
     include $MAGENTO_ROOT/nginx.conf.sample;
 }
