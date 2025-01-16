@@ -813,6 +813,22 @@ if [ "$SKIP_OPENSEARCH" != "true" ]; then
         mkdir -p /var/lib/opensearch /var/log/opensearch
         chown -R opensearch:opensearch /var/lib/opensearch /var/log/opensearch
 
+        # 设置系统限制
+        log "Setting system limits..."
+        cat > /etc/security/limits.d/opensearch.conf <<EOF
+opensearch soft nofile 65535
+opensearch hard nofile 65535
+opensearch soft nproc 4096
+opensearch hard nproc 4096
+EOF
+
+        # 设置系统参数
+        log "Setting system parameters..."
+        cat > /etc/sysctl.d/opensearch.conf <<EOF
+vm.max_map_count = 262144
+EOF
+        sysctl -p /etc/sysctl.d/opensearch.conf
+
         # 配置 OpenSearch
         log "Configuring OpenSearch..."
         cat > /usr/local/opensearch/config/opensearch.yml <<EOF
@@ -823,6 +839,17 @@ path.logs: /var/log/opensearch
 network.host: 127.0.0.1
 http.port: 9200
 discovery.type: single-node
+bootstrap.memory_lock: true
+EOF
+
+        # 配置 JVM 选项
+        log "Configuring JVM options..."
+        cat > /usr/local/opensearch/config/jvm.options <<EOF
+-Xms1g
+-Xmx1g
+-XX:+UseG1GC
+-XX:G1ReservePercent=25
+-XX:InitiatingHeapOccupancyPercent=30
 EOF
 
         # 创建系统服务
@@ -842,7 +869,6 @@ Environment=OPENSEARCH_HOME=/usr/local/opensearch
 Environment=OPENSEARCH_PATH_CONF=/usr/local/opensearch/config
 Environment=JAVA_HOME=/usr/local/opensearch/jdk
 Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
-Environment=ES_JAVA_OPTS="-Xms1g -Xmx1g"
 
 User=opensearch
 Group=opensearch
@@ -854,6 +880,8 @@ LimitNOFILE=65535
 LimitNPROC=4096
 LimitAS=infinity
 LimitFSIZE=infinity
+# Enable memory locking
+LimitMEMLOCK=infinity
 
 # Disable timeout logic
 TimeoutStopSec=0
@@ -882,13 +910,18 @@ EOF
         systemctl start opensearch
         systemctl enable opensearch
 
-        # 等待服务启动
+        # 等待服务启动并检查日志
         log "Waiting for OpenSearch to start..."
         for i in {1..60}; do
             if curl -s "http://localhost:9200/_cluster/health" &>/dev/null; then
                 log "OpenSearch is running"
                 break
             fi
+            if [ -f /var/log/opensearch/magento-cluster.log ]; then
+                log "Checking OpenSearch logs..."
+                tail -n 20 /var/log/opensearch/magento-cluster.log
+            fi
+            log "Attempt $i/60: Still waiting..."
             sleep 2
         done
     else
