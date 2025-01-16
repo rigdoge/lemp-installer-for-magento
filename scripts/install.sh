@@ -138,32 +138,18 @@ fi
 # 等待数据库完全启动
 log "Waiting for database to start..."
 for i in {1..30}; do
-    if [[ "$ARCH" == "x86_64" ]]; then
-        if mysqladmin ping &>/dev/null; then
-            break
-        fi
-    else
-        if mysqladmin ping &>/dev/null; then
-            break
-        fi
+    if mysqladmin ping &>/dev/null; then
+        break
     fi
     sleep 1
 done
 
 # 设置 root 密码
 log "Setting database root password..."
-if [[ "$ARCH" == "x86_64" ]]; then
-    if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
-        log "MySQL root password set successfully"
-    else
-        error "Failed to set MySQL root password"
-    fi
+if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
+    log "MySQL root password set successfully"
 else
-    if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
-        log "MariaDB root password set successfully"
-    else
-        error "Failed to set MariaDB root password"
-    fi
+    error "Failed to set MySQL root password"
 fi
 
 # 配置数据库
@@ -183,11 +169,7 @@ transaction-isolation = READ-COMMITTED
 EOF
 
 # 重启数据库使配置生效
-if [[ "$ARCH" == "x86_64" ]]; then
-    systemctl restart mysql || error "Failed to restart MySQL"
-else
-    systemctl restart mariadb || error "Failed to restart MariaDB"
-fi
+systemctl restart mysql || error "Failed to restart MySQL"
 
 # 设置数据库安全配置
 log "Securing database installation..."
@@ -199,17 +181,9 @@ DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 EOF
 then
-    if [[ "$ARCH" == "x86_64" ]]; then
-        log "MySQL security configuration completed successfully"
-    else
-        log "MariaDB security configuration completed successfully"
-    fi
+    log "MySQL security configuration completed successfully"
 else
-    if [[ "$ARCH" == "x86_64" ]]; then
-        error "Failed to configure MySQL security settings"
-    else
-        error "Failed to configure MariaDB security settings"
-    fi
+    error "Failed to configure MySQL security settings"
 fi
 
 # 第3阶段：安装PHP和扩展
@@ -478,11 +452,7 @@ log "Installation completed successfully!"
 log "Installed versions:"
 echo "----------------------------------------"
 nginx -v 2>&1 | sed 's/^/Nginx: /'
-if [[ "$ARCH" == "x86_64" ]]; then
-    mysql --version | sed 's/^/MySQL: /'
-else
-    mariadb --version | sed 's/^/MariaDB: /'
-fi
+mysql --version | sed 's/^/MySQL: /'
 php --version | head -n1 | sed 's/^/PHP: /'
 redis-cli --version | sed 's/^/Redis: /'
 rabbitmqctl version | head -n1 | sed 's/^/RabbitMQ: /'
