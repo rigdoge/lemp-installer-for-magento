@@ -97,11 +97,14 @@ mkdir -p /var/log/nginx
 chown $PHP_USER:$PHP_GROUP /var/log/nginx
 chmod 755 /var/log/nginx
 
-# 设置目录权限
-log "Setting directory permissions..."
-chown -R $PHP_USER:$PHP_GROUP "$MAGENTO_ROOT"
-find "$MAGENTO_ROOT" -type f -exec chmod 644 {} \;
-find "$MAGENTO_ROOT" -type d -exec chmod 755 {} \;
+# 设置目录权限（在后台执行）
+log "Setting directory permissions (running in background)..."
+{
+    chown -R $PHP_USER:$PHP_GROUP "$MAGENTO_ROOT"
+    find "$MAGENTO_ROOT" -type f -exec chmod 644 {} \;
+    find "$MAGENTO_ROOT" -type d -exec chmod 755 {} \;
+    log "Directory permissions update completed."
+} &
 
 # 配置 Nginx
 log "Configuring Nginx..."
