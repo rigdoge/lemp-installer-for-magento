@@ -270,31 +270,37 @@ apt-get clean
 rm -rf /var/lib/apt/lists/*
 apt-get update
 
-# 添加 Team RabbitMQ 的仓库
-log "Adding Team RabbitMQ repository..."
-
-# 添加 Erlang 仓库密钥
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-erlang.gpg
-
-# 添加 RabbitMQ 服务器仓库密钥
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-server.gpg
-
-tee /etc/apt/sources.list.d/rabbitmq.list <<EOF
+if [[ "$ARCH" == "x86_64" ]]; then
+    # x86_64 架构使用 RabbitMQ 官方仓库
+    log "Installing RabbitMQ for x86_64 architecture..."
+    
+    # 添加 Erlang 仓库密钥
+    curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-erlang.gpg
+    
+    # 添加 RabbitMQ 服务器仓库密钥
+    curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-server.gpg
+    
+    tee /etc/apt/sources.list.d/rabbitmq.list <<EOF
 deb [signed-by=/usr/share/keyrings/rabbitmq-erlang.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/debian $(lsb_release -cs) main
 deb [signed-by=/usr/share/keyrings/rabbitmq-server.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/debian $(lsb_release -cs) main
 EOF
-
-# 更新包列表
-apt-get update || error "Failed to update package lists after adding repositories"
-
-# 安装 Erlang 和 RabbitMQ
-log "Installing Erlang and RabbitMQ..."
-apt-get install -y erlang-base \
-    erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
-    erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
-    erlang-runtime-tools erlang-snmp erlang-ssl \
-    erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl \
-    rabbitmq-server || error "Failed to install Erlang and RabbitMQ"
+    
+    # 更新包列表
+    apt-get update || error "Failed to update package lists after adding repositories"
+    
+    # 安装 Erlang 和 RabbitMQ
+    log "Installing Erlang and RabbitMQ..."
+    apt-get install -y erlang-base \
+        erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
+        erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
+        erlang-runtime-tools erlang-snmp erlang-ssl \
+        erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl \
+        rabbitmq-server || error "Failed to install Erlang and RabbitMQ"
+else
+    # ARM64 架构使用系统仓库的 RabbitMQ
+    log "Installing RabbitMQ for ARM64 architecture..."
+    apt-get install -y rabbitmq-server || error "Failed to install RabbitMQ"
+fi
 
 systemctl start rabbitmq-server
 systemctl enable rabbitmq-server
