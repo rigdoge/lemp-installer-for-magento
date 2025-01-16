@@ -514,7 +514,20 @@ fi
 if [ "$SKIP_VARNISH" != "true" ]; then
     if ! check_installed "varnish"; then
         log "Installing Varnish..."
-        apt-get install -y varnish=7.5.* || error "Failed to install Varnish 7.5"
+        
+        # 添加 Varnish 仓库密钥
+        log "Adding Varnish repository..."
+        curl -fsSL https://packagecloud.io/varnishcache/varnish75/gpgkey | gpg --dearmor > /usr/share/keyrings/varnish-archive-keyring.gpg
+        
+        # 添加 Varnish 仓库
+        echo "deb [signed-by=/usr/share/keyrings/varnish-archive-keyring.gpg] https://packagecloud.io/varnishcache/varnish75/debian/ $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/varnish.list
+        
+        # 更新包列表
+        apt-get update || error "Failed to update package lists after adding Varnish repository"
+        
+        # 安装 Varnish
+        apt-get install -y varnish || error "Failed to install Varnish"
+        
         systemctl start varnish
         systemctl enable varnish
     else
