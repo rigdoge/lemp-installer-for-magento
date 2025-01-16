@@ -72,6 +72,12 @@ mkdir -p /etc/php/8.2/fpm/pool.d
 chown root:root /etc/php/8.2/fpm/pool.d
 chmod 755 /etc/php/8.2/fpm/pool.d
 
+# 停止默认的 www 池
+if [ -f "/etc/php/8.2/fpm/pool.d/www.conf" ]; then
+    log "Disabling default PHP-FPM pool..."
+    mv /etc/php/8.2/fpm/pool.d/www.conf /etc/php/8.2/fpm/pool.d/www.conf.disabled
+fi
+
 cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
 user = www-data
@@ -94,6 +100,11 @@ php_value[suhosin.session.cryptua] = Off
 
 php_value[error_log] = /var/log/php-fpm/magento-error.log
 php_flag[log_errors] = on
+
+catch_workers_output = yes
+php_flag[display_errors] = on
+php_admin_value[error_log] = /var/log/php-fpm/\$pool.error.log
+php_admin_flag[log_errors] = on
 
 security.limit_extensions = .php
 EOF
@@ -152,6 +163,18 @@ server {
     access_log /var/log/nginx/$DOMAIN.access.log;
     error_log /var/log/nginx/$DOMAIN.error.log debug;
 
+    # 添加 FastCGI 缓冲设置
+    fastcgi_buffers 16 16k;
+    fastcgi_buffer_size 32k;
+    
+    # 增加超时时间
+    fastcgi_read_timeout 300;
+    fastcgi_connect_timeout 300;
+    
+    # 添加 FastCGI 参数
+    fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+    fastcgi_param PATH_INFO \$fastcgi_path_info;
+    
     include $MAGENTO_ROOT/nginx.conf.sample;
 }
 EOF
