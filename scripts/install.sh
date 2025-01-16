@@ -77,7 +77,7 @@ rm -f /usr/share/keyrings/mysql*
 
 # 添加 MySQL APT 仓库
 wget https://dev.mysql.com/get/mysql-apt-config_0.8.29-1_all.deb
-DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.29-1_all.deb
+dpkg -i mysql-apt-config_0.8.29-1_all.deb
 rm mysql-apt-config_0.8.29-1_all.deb
 
 # 更新包列表
@@ -90,7 +90,7 @@ DB_ROOT_PASSWORD="magento"
 
 # 安装 MySQL
 log "Installing MySQL..."
-apt-get install -y mysql-server mysql-common
+apt-get install -y mysql-server
 
 # 启动 MySQL
 systemctl start mysql || error "Failed to start MySQL"
