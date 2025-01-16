@@ -62,6 +62,22 @@ check_service_active() {
     return $?
 }
 
+# 检查 MySQL 服务状态的函数
+check_mysql_status() {
+    log "Checking MySQL service status..."
+    if ! systemctl status mysql >/dev/null 2>&1; then
+        warn "MySQL service status check failed"
+        log "Checking MySQL error log..."
+        if [ -f /var/log/mysql/error.log ]; then
+            tail -n 50 /var/log/mysql/error.log
+        else
+            warn "MySQL error log not found at /var/log/mysql/error.log"
+        fi
+        return 1
+    fi
+    return 0
+}
+
 # 第1阶段：安装基础工具
 log "Stage 1: Installing basic tools..."
 for tool in curl wget git unzip net-tools; do
@@ -96,52 +112,63 @@ rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
 rm -f /etc/apt/sources.list.d/mysql.list
 rm -f /usr/share/keyrings/mysql*
 
-if [[ "$ARCH" == "x86_64" ]]; then
+# MySQL 安装和配置部分
+if [[ "$ARCH" == "x86_64" || "$ARCH" == "aarch64" ]]; then
     # 添加 Percona 仓库
     log "Adding Percona repository..."
-    curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb
-    dpkg -i percona-release_latest.generic_all.deb
-    rm percona-release_latest.generic_all.deb
-    percona-release setup ps80
+    if [ ! -f /etc/apt/sources.list.d/percona-release.list ]; then
+        curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb || error "Failed to download Percona release package"
+        dpkg -i percona-release_latest.generic_all.deb || error "Failed to install Percona release package"
+        rm percona-release_latest.generic_all.deb
+    fi
+
+    # 设置 Percona 仓库
+    log "Setting up Percona repository..."
+    percona-release setup ps80 || error "Failed to setup Percona repository"
     
     # 更新包列表
     apt-get update || error "Failed to update package lists after adding Percona repository"
     
     # 安装 Percona MySQL
     log "Installing Percona MySQL 8.0..."
-    DEBIAN_FRONTEND=noninteractive apt-get install -y percona-server-client percona-server-server || error "Failed to install Percona MySQL 8.0"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        percona-server-client \
+        percona-server-server || error "Failed to install Percona MySQL 8.0"
     
-    # 启动 MySQL
-    systemctl start mysql || error "Failed to start MySQL"
-    systemctl enable mysql
-else
-    # ARM64 架构也使用 Percona MySQL
-    log "Installing Percona MySQL 8.0 for ARM64..."
+    # 确保 MySQL 数据目录存在且权限正确
+    log "Checking MySQL data directory..."
+    mkdir -p /var/lib/mysql
+    chown -R mysql:mysql /var/lib/mysql
+    chmod 750 /var/lib/mysql
     
-    # 添加 Percona 仓库
-    curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb
-    dpkg -i percona-release_latest.generic_all.deb
-    rm percona-release_latest.generic_all.deb
-    percona-release setup ps80
+    # 启动 MySQL 服务
+    log "Starting MySQL service..."
+    systemctl start mysql || {
+        error_code=$?
+        warn "Failed to start MySQL service (exit code: $error_code)"
+        check_mysql_status
+        error "MySQL service failed to start"
+    }
     
-    # 更新包列表
-    apt-get update || error "Failed to update package lists after adding Percona repository"
-    
-    # 安装 Percona MySQL
-    DEBIAN_FRONTEND=noninteractive apt-get install -y percona-server-client percona-server-server || error "Failed to install Percona MySQL 8.0"
-    
-    # 启动 MySQL
-    systemctl start mysql || error "Failed to start MySQL"
-    systemctl enable mysql
+    systemctl enable mysql || warn "Failed to enable MySQL service"
 fi
 
 # 等待数据库完全启动
 log "Waiting for database to start..."
-for i in {1..30}; do
+max_attempts=30
+attempt=1
+while [ $attempt -le $max_attempts ]; do
     if mysqladmin ping &>/dev/null; then
+        log "MySQL is responding to ping"
         break
     fi
-    sleep 1
+    log "Attempt $attempt/$max_attempts: Waiting for MySQL to start..."
+    if [ $attempt -eq $max_attempts ]; then
+        check_mysql_status
+        error "MySQL did not start after $max_attempts attempts"
+    fi
+    sleep 2
+    ((attempt++))
 done
 
 # 设置 root 密码
