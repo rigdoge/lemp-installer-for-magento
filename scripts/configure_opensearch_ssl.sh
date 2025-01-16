@@ -88,7 +88,12 @@ chmod 600 "$CERT_DIR"/*
 
 # 初始化安全插件
 log "Initializing security plugin..."
-cd /usr/local/opensearch/plugins/opensearch-security/tools
+SECURITY_TOOLS_DIR="/usr/local/opensearch/plugins/opensearch-security/tools"
+cd "$SECURITY_TOOLS_DIR"
+
+# 确保 securityadmin.sh 有执行权限
+log "Setting permissions for security tools..."
+chmod +x securityadmin.sh
 
 # 运行 securityadmin.sh 来初始化安全配置
 ./securityadmin.sh -cd "$SECURITY_CONFIG_DIR" \
