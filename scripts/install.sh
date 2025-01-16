@@ -272,7 +272,7 @@ apt-get update
 
 # 添加 Erlang Solutions 仓库
 log "Adding Erlang Solutions repository..."
-wget -O- https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | gpg --dearmor > /usr/share/keyrings/erlang-solutions.gpg
+curl -fsSL https://packages.erlang-solutions.com/debian/erlang_solutions.asc | gpg --dearmor -o /usr/share/keyrings/erlang-solutions.gpg
 echo "deb [signed-by=/usr/share/keyrings/erlang-solutions.gpg] https://packages.erlang-solutions.com/debian $(lsb_release -cs) contrib" | tee /etc/apt/sources.list.d/erlang-solutions.list
 
 # 添加 RabbitMQ 仓库
