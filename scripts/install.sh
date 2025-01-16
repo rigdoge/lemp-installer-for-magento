@@ -87,8 +87,8 @@ check_nginx() {
             log "Nginx version is compatible"
             return 0
         else
-            warn "Running Nginx version might not be compatible"
-            error "Please consider upgrading to Nginx 1.24.x"
+            warn "Current Nginx version $nginx_version is not 1.24.x"
+            return 1
         fi
     fi
     return 1
@@ -121,8 +121,8 @@ check_php() {
                 return 1
             fi
         else
-            warn "Running PHP version might not be compatible"
-            error "Please consider upgrading to PHP 8.2.x"
+            warn "Current PHP version $php_version is not 8.2.x"
+            return 1
         fi
     fi
     return 1
@@ -137,8 +137,8 @@ check_redis() {
             log "Redis version is compatible"
             return 0
         else
-            warn "Running Redis version might not be compatible"
-            error "Please consider upgrading to Redis 7.2.x"
+            warn "Current Redis version $redis_version is not 7.2.x"
+            return 1
         fi
     fi
     return 1
@@ -164,8 +164,8 @@ check_varnish() {
             log "Varnish version is compatible"
             return 0
         else
-            warn "Running Varnish version might not be compatible"
-            error "Please consider upgrading to Varnish 7.5.x"
+            warn "Current Varnish version $varnish_version is not 7.5.x"
+            return 1
         fi
     fi
     return 1
