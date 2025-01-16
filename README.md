@@ -46,6 +46,25 @@ sudo ./scripts/configure_mysql.sh <db_name> <db_user> <db_password> <root_passwo
 sudo ./scripts/configure_vhost.sh <domain> <magento_root> <magento_mode>
 ```
 
+删除虚拟主机配置：
+
+```bash
+sudo ./scripts/remove_vhost.sh <domain>
+```
+
+虚拟主机配置参数说明：
+- domain: 网站域名（例如：magento.example.com）
+- magento_root: Magento 安装路径（例如：/var/www/magento）
+- magento_mode: Magento 运行模式（developer/production）
+
+删除虚拟主机时，脚本会：
+1. 删除 Nginx 相关配置文件和日志
+2. 删除 PHP-FPM 相关配置
+3. 恢复默认的 PHP-FPM 配置
+4. 重启相关服务
+
+注意：删除虚拟主机配置不会删除网站文件。
+
 ### 4. 备份
 
 执行系统备份：
@@ -165,6 +184,7 @@ Nginx虚拟主机配置：
 │   ├── install.sh           # LEMP环境安装脚本
 │   ├── configure_mysql.sh   # MySQL配置脚本
 │   ├── configure_vhost.sh   # Nginx虚拟主机配置脚本
+│   ├── remove_vhost.sh      # Nginx虚拟主机删除脚本
 │   ├── backup.sh           # 备份脚本
 │   ├── security_check.sh   # 安全检查脚本
 │   └── optimize.sh         # 性能优化脚本
