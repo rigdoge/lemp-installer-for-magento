@@ -140,60 +140,6 @@ chmod +x securityadmin.sh
 log "Temporarily disabling security plugin for initialization..."
 sed -i 's/plugins.security.disabled: false/plugins.security.disabled: true/' "$CONFIG_DIR/opensearch.yml"
 
-# 重启 OpenSearch 使配置生效
-log "Restarting OpenSearch with security disabled..."
-systemctl restart opensearch
-
-# 等待服务启动
-log "Waiting for OpenSearch to start..."
-for i in {1..60}; do
-    # 首先检查服务状态
-    if systemctl is-active --quiet opensearch; then
-        log "OpenSearch service is running"
-        
-        # 然后尝试连接到 API
-        if curl -s -m 5 "http://localhost:9200/_cluster/health" > /dev/null 2>&1; then
-            log "OpenSearch API is responding"
-            break
-        else
-            if [ $i -eq 30 ]; then
-                log "OpenSearch service is running but API is not responding yet. Checking logs..."
-                tail -n 50 /var/log/opensearch/magento-cluster.log || true
-                systemctl status opensearch || true
-            fi
-        fi
-    fi
-    
-    if [ $i -eq 60 ]; then
-        warn "OpenSearch service is running but API is not responding after 120 seconds"
-        warn "This might be normal during first startup. Continuing with configuration..."
-        break
-    fi
-    echo -n "."
-    sleep 2
-done
-echo ""
-
-# 运行 securityadmin.sh 来初始化安全配置
-log "Running security initialization..."
-./securityadmin.sh -cd "$SECURITY_CONFIG_DIR" \
-    -icl -nhnv \
-    -cacert "$CERT_DIR/root-ca.pem" \
-    -cert "$CERT_DIR/node.pem" \
-    -key "$CERT_DIR/node-key.pem" \
-    -h localhost
-
-# 重新启用安全插件
-log "Re-enabling security plugin..."
-sed -i 's/plugins.security.disabled: true/plugins.security.disabled: false/' "$CONFIG_DIR/opensearch.yml"
-
-# 返回原目录
-cd -
-
-# 重启 OpenSearch 以启用安全插件
-log "Restarting OpenSearch with security enabled..."
-systemctl restart opensearch
-
 # 更新 OpenSearch 配置
 log "Updating OpenSearch configuration..."
 cat > "$CONFIG_DIR/opensearch.yml" <<EOF
@@ -245,8 +191,40 @@ cp -r /usr/local/opensearch/plugins/opensearch-security/securityconfig/* "$SECUR
 chown -R opensearch:opensearch "$SECURITY_CONFIG_DIR"
 chmod 600 "$SECURITY_CONFIG_DIR"/*
 
+# 重启 OpenSearch 使配置生效
+log "Restarting OpenSearch with SSL configuration..."
+systemctl restart opensearch
+
+# 等待服务启动
+log "Waiting for OpenSearch to start..."
+for i in {1..60}; do
+    if systemctl is-active --quiet opensearch; then
+        log "OpenSearch service is running"
+        sleep 10  # 给予额外时间让 SSL 配置生效
+        break
+    fi
+    echo -n "."
+    sleep 2
+done
+echo ""
+
+# 运行 securityadmin.sh 来初始化安全配置
+log "Running security initialization..."
+cd "$SECURITY_TOOLS_DIR"
+./securityadmin.sh -cd "$SECURITY_CONFIG_DIR" \
+    -icl -nhnv \
+    -cacert "$CERT_DIR/root-ca.pem" \
+    -cert "$CERT_DIR/node.pem" \
+    -key "$CERT_DIR/node-key.pem" \
+    -h localhost \
+    -p 9200
+
+# 返回原目录
+cd -
+
 # 验证节点是否正常运行
 log "Verifying node status..."
+sleep 5  # 给予系统一些时间来应用更改
 NODE_COUNT=$(curl -s -k -u "admin:admin" "https://localhost:9200/_cat/nodes?h=ip" | wc -l)
 if [ "$NODE_COUNT" -eq 0 ]; then
     error "No alive nodes found in the cluster. Please check OpenSearch configuration."
