@@ -1,5 +1,5 @@
 # Core Components (Fixed versions)
-nginx==1.24.0
+nginx==1.24.*
 mysql-server==8.0.36
 php==8.2.0
 redis-server==7.2.0

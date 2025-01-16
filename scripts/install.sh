@@ -92,9 +92,9 @@ apt-get update
 # 安装指定版本的软件包
 log "Installing specified versions of required packages..."
 
-# Nginx 1.24.0
-log "Installing Nginx 1.24.0..."
-apt-get install -y nginx=1.24.0* || error "Failed to install Nginx 1.24.0"
+# Nginx 1.24
+log "Installing Nginx 1.24..."
+apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
 
 # MySQL 8.0.36
 log "Installing MySQL 8.0.36..."
