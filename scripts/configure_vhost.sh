@@ -52,16 +52,33 @@ fi
 MAGENTO_OWNER=$(stat -c '%U' "$MAGENTO_ROOT")
 log "Detected Magento directory owner: $MAGENTO_OWNER"
 
+# 确保 www-data 用户存在
+if ! id -u www-data >/dev/null 2>&1; then
+    log "Creating www-data user..."
+    useradd -r -s /sbin/nologin www-data
+fi
+
+# 将 Magento 所有者添加到 www-data 组
+log "Adding $MAGENTO_OWNER to www-data group..."
+usermod -a -G www-data "$MAGENTO_OWNER"
+
 # 配置 PHP-FPM 池
 log "Configuring PHP-FPM pool..."
 PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
+
+# 停止默认的 www 池
+if [ -f "/etc/php/8.2/fpm/pool.d/www.conf" ]; then
+    log "Disabling default PHP-FPM pool..."
+    mv /etc/php/8.2/fpm/pool.d/www.conf /etc/php/8.2/fpm/pool.d/www.conf.disabled
+fi
+
 cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
-user = $MAGENTO_OWNER
-group = $MAGENTO_OWNER
+user = www-data
+group = www-data
 listen = /run/php/php8.2-fpm-magento.sock
-listen.owner = $MAGENTO_OWNER
-listen.group = $MAGENTO_OWNER
+listen.owner = www-data
+listen.group = www-data
 listen.mode = 0660
 
 pm = dynamic
@@ -75,8 +92,17 @@ php_admin_value[max_execution_time] = 18000
 php_admin_value[session.auto_start] = Off
 php_admin_value[suhosin.session.cryptua] = Off
 
+php_admin_value[error_log] = /var/log/php-fpm/magento-error.log
+php_admin_flag[log_errors] = on
+
 security.limit_extensions = .php
 EOF
+
+# 创建 PHP-FPM 日志目录
+log "Creating PHP-FPM log directory..."
+mkdir -p /var/log/php-fpm
+chown www-data:www-data /var/log/php-fpm
+chmod 755 /var/log/php-fpm
 
 # 创建必要的目录
 log "Creating Nginx configuration directories..."
@@ -106,7 +132,7 @@ server {
     set \$MAGE_MODE $MAGENTO_MODE;
     
     access_log /var/log/nginx/$DOMAIN.access.log;
-    error_log /var/log/nginx/$DOMAIN.error.log;
+    error_log /var/log/nginx/$DOMAIN.error.log debug;
 
     include $MAGENTO_ROOT/nginx.conf.sample;
 }
@@ -121,25 +147,38 @@ fi
 log "Setting directory permissions..."
 find "$MAGENTO_ROOT" -type f -exec chmod 644 {} \;
 find "$MAGENTO_ROOT" -type d -exec chmod 755 {} \;
-chown -R $MAGENTO_OWNER:$MAGENTO_OWNER "$MAGENTO_ROOT"
+chown -R $MAGENTO_OWNER:www-data "$MAGENTO_ROOT"
 
 # 设置特殊目录权限
 if [ -d "$MAGENTO_ROOT/var" ]; then
-    chmod -R 777 "$MAGENTO_ROOT/var"
+    chmod -R 775 "$MAGENTO_ROOT/var"
 fi
 if [ -d "$MAGENTO_ROOT/pub/static" ]; then
-    chmod -R 777 "$MAGENTO_ROOT/pub/static"
+    chmod -R 775 "$MAGENTO_ROOT/pub/static"
 fi
 if [ -d "$MAGENTO_ROOT/pub/media" ]; then
-    chmod -R 777 "$MAGENTO_ROOT/pub/media"
+    chmod -R 775 "$MAGENTO_ROOT/pub/media"
 fi
 if [ -d "$MAGENTO_ROOT/app/etc" ]; then
-    chmod -R 777 "$MAGENTO_ROOT/app/etc"
+    chmod -R 775 "$MAGENTO_ROOT/app/etc"
 fi
 
 # 重启 PHP-FPM
 log "Restarting PHP-FPM..."
 systemctl restart php8.2-fpm || error "Failed to restart PHP-FPM"
+
+# 验证 PHP-FPM 是否正在运行
+if ! systemctl is-active --quiet php8.2-fpm; then
+    error "PHP-FPM failed to start. Check logs for details."
+fi
+
+# 检查 PHP-FPM sock 文件
+if [ ! -S "/run/php/php8.2-fpm-magento.sock" ]; then
+    error "PHP-FPM socket file not found"
+fi
+
+# 检查 sock 文件权限
+ls -l /run/php/php8.2-fpm-magento.sock
 
 # 测试Nginx配置
 log "Testing Nginx configuration..."
@@ -149,6 +188,20 @@ nginx -t || error "Nginx configuration test failed"
 log "Restarting Nginx..."
 systemctl restart nginx || error "Failed to restart Nginx"
 
+# 验证 Nginx 是否正在运行
+if ! systemctl is-active --quiet nginx; then
+    error "Nginx failed to start. Check logs for details."
+fi
+
 log "Virtual host configuration completed successfully!"
 log "Your site should now be accessible at: http://$DOMAIN"
-log "Make sure to update your DNS records or local hosts file." 
+log "Make sure to update your DNS records or local hosts file."
+
+# 显示一些调试信息
+log "Debug information:"
+log "PHP-FPM status:"
+systemctl status php8.2-fpm
+log "Nginx status:"
+systemctl status nginx
+log "Socket file permissions:"
+ls -l /run/php/php8.2-fpm-magento.sock 
