@@ -90,7 +90,7 @@ DB_ROOT_PASSWORD="magento"
 
 # 安装 MySQL
 log "Installing MySQL..."
-apt-get install -y mysql-server=8.0.36-1 mysql-common
+apt-get install -y mysql-server mysql-common
 
 # 启动 MySQL
 systemctl start mysql || error "Failed to start MySQL"
