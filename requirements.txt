@@ -1,6 +1,6 @@
 # Core Components (Fixed versions)
 nginx==1.24.*
-mysql-server==8.0.35
+mysql-server==8.0.40
 php==8.2.0
 redis-server==7.2.0
 rabbitmq-server==3.13.0

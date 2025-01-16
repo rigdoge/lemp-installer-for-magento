@@ -86,14 +86,14 @@ MYSQL_ROOT_PASSWORD="magento"
 # 下载 MySQL 服务器和客户端包
 if [[ "$ARCH" == "x86_64" ]]; then
     log "Downloading MySQL packages for x86_64..."
-    wget https://repo.mysql.com/apt/debian/pool/mysql-8.0/m/mysql-community/mysql-common_8.0.35-1debian12_amd64.deb
-    wget https://repo.mysql.com/apt/debian/pool/mysql-8.0/m/mysql-community/mysql-community-client_8.0.35-1debian12_amd64.deb
-    wget https://repo.mysql.com/apt/debian/pool/mysql-8.0/m/mysql-community/mysql-community-server_8.0.35-1debian12_amd64.deb
+    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-server-8.0_8.0.40-2_amd64.deb
+    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-8.0_8.0.40-2_amd64.deb
+    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-common_8.0.40-2_all.deb
 elif [[ "$ARCH" == "aarch64" ]]; then
     log "Downloading MySQL packages for ARM64..."
-    wget https://repo.mysql.com/apt/debian/pool/mysql-8.0/m/mysql-community/mysql-common_8.0.35-1debian12_arm64.deb
-    wget https://repo.mysql.com/apt/debian/pool/mysql-8.0/m/mysql-community/mysql-community-client_8.0.35-1debian12_arm64.deb
-    wget https://repo.mysql.com/apt/debian/pool/mysql-8.0/m/mysql-community/mysql-community-server_8.0.35-1debian12_arm64.deb
+    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-server-8.0_8.0.40-2_arm64.deb
+    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-8.0_8.0.40-2_arm64.deb
+    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-common_8.0.40-2_all.deb
 else
     error "Unsupported architecture: $ARCH"
 fi
@@ -104,20 +104,20 @@ apt-get install -y libaio1 libmecab2 libsasl2-2
 # 安装 MySQL 包
 log "Installing MySQL packages..."
 if [[ "$ARCH" == "x86_64" ]]; then
-    dpkg -i mysql-common_8.0.35-1debian12_amd64.deb
-    dpkg -i mysql-community-client_8.0.35-1debian12_amd64.deb
-    dpkg -i mysql-community-server_8.0.35-1debian12_amd64.deb || true
+    dpkg -i mysql-common_8.0.40-2_all.deb
+    dpkg -i mysql-client-8.0_8.0.40-2_amd64.deb
+    dpkg -i mysql-server-8.0_8.0.40-2_amd64.deb || true
 elif [[ "$ARCH" == "aarch64" ]]; then
-    dpkg -i mysql-common_8.0.35-1debian12_arm64.deb
-    dpkg -i mysql-community-client_8.0.35-1debian12_arm64.deb
-    dpkg -i mysql-community-server_8.0.35-1debian12_arm64.deb || true
+    dpkg -i mysql-common_8.0.40-2_all.deb
+    dpkg -i mysql-client-8.0_8.0.40-2_arm64.deb
+    dpkg -i mysql-server-8.0_8.0.40-2_arm64.deb || true
 fi
 
 # 修复可能的依赖问题
 apt-get install -f -y
 
 # 清理下载的文件
-rm -f mysql-*_8.0.35-1debian12_*.deb
+rm -f mysql-*_8.0.40-2_*.deb
 
 # 启动 MySQL
 systemctl start mysql || error "Failed to start MySQL"
