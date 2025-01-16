@@ -42,6 +42,17 @@ if [ ! -f "$TEMPLATE_FILE" ]; then
     error "Template file not found: $TEMPLATE_FILE"
 fi
 
+# 创建必要的目录
+log "Creating Nginx configuration directories..."
+mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
+
+# 确保 Nginx 配置文件包含 sites-enabled
+if ! grep -q "include /etc/nginx/sites-enabled/\*" /etc/nginx/nginx.conf; then
+    log "Adding sites-enabled to Nginx configuration..."
+    # 在 http 块的末尾添加 include 语句
+    sed -i '/http {/a \    include /etc/nginx/sites-enabled/*;' /etc/nginx/nginx.conf
+fi
+
 # 创建配置文件
 log "Creating Nginx configuration for $DOMAIN..."
 CONF_FILE="/etc/nginx/sites-available/$DOMAIN.conf"
