@@ -113,16 +113,22 @@ if [[ "$ARCH" == "x86_64" ]]; then
     systemctl start mysql || error "Failed to start MySQL"
     systemctl enable mysql
 else
-    # 安装 MariaDB
-    log "Installing MariaDB 10.6 for ARM64..."
+    # ARM64 架构也使用 Percona MySQL
+    log "Installing Percona MySQL 8.0 for ARM64..."
     
-    # 安装 MariaDB
-    apt-get update || error "Failed to update package lists"
-    apt-get install -y mariadb-server mariadb-client || error "Failed to install MariaDB"
+    # 添加 Percona 仓库
+    wget -O - https://repo.percona.com/apt/percona-release.key | gpg --dearmor > /usr/share/keyrings/percona-keyring.gpg
+    echo "deb [signed-by=/usr/share/keyrings/percona-keyring.gpg] https://repo.percona.com/ps-80/apt $(lsb_release -sc) main" > /etc/apt/sources.list.d/percona-mysql.list
     
-    # 启动 MariaDB
-    systemctl start mariadb || error "Failed to start MariaDB"
-    systemctl enable mariadb
+    # 更新包列表
+    apt-get update || error "Failed to update package lists after adding Percona repository"
+    
+    # 安装 Percona MySQL
+    DEBIAN_FRONTEND=noninteractive apt-get install -y percona-server-client percona-server-server || error "Failed to install Percona MySQL 8.0"
+    
+    # 启动 MySQL
+    systemctl start mysql || error "Failed to start MySQL"
+    systemctl enable mysql
 fi
 
 # 等待数据库完全启动
