@@ -37,13 +37,15 @@ if [ ! -d "$MAGENTO_ROOT" ]; then
     error "Magento root directory not found: $MAGENTO_ROOT"
 fi
 
-# 获取目录所有者
-MAGENTO_OWNER=$(stat -c '%U' "$MAGENTO_ROOT")
-log "Detected Magento directory owner: $MAGENTO_OWNER"
-
 # 使用 doge 用户
 PHP_USER="doge"
 PHP_GROUP="doge"
+
+# 确保 Magento 目录所有者是 doge
+log "Setting Magento directory ownership to doge..."
+chown -R $PHP_USER:$PHP_GROUP "$MAGENTO_ROOT"
+MAGENTO_OWNER=$PHP_USER
+log "Magento directory owner set to: $MAGENTO_OWNER"
 
 # 配置 Nginx 用户
 log "Configuring Nginx user..."
@@ -55,8 +57,13 @@ else
 fi
 
 # 确认更改
-log "Verifying Nginx user configuration..."
+log "Verifying user configurations..."
+echo "Nginx user config:"
 grep "^user" /etc/nginx/nginx.conf || error "Failed to set Nginx user"
+echo "Magento directory owner:"
+stat -c '%U:%G' "$MAGENTO_ROOT"
+echo "Current PHP-FPM processes:"
+ps aux | grep "php-fpm" | grep -v grep
 
 # 禁用默认的 www pool
 log "Disabling default www pool..."
