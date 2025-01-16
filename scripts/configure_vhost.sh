@@ -163,17 +163,37 @@ server {
     access_log /var/log/nginx/$DOMAIN.access.log;
     error_log /var/log/nginx/$DOMAIN.error.log debug;
 
-    # 添加 FastCGI 缓冲设置
-    fastcgi_buffers 16 16k;
-    fastcgi_buffer_size 32k;
+    root \$MAGE_ROOT/pub;
     
-    # 增加超时时间
-    fastcgi_read_timeout 300;
-    fastcgi_connect_timeout 300;
+    index index.php;
+    autoindex off;
+    charset UTF-8;
     
-    # 添加 FastCGI 参数
-    fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
-    fastcgi_param PATH_INFO \$fastcgi_path_info;
+    # PHP entry point for main application
+    location ~ ^/(index|get|static|errors/report|errors/404|errors/503|health_check)\.php$ {
+        try_files \$uri =404;
+        fastcgi_pass   fastcgi_backend;
+        fastcgi_buffers 16 16k;
+        fastcgi_buffer_size 32k;
+        
+        fastcgi_param  PHP_FLAG  "session.auto_start=off \n suhosin.session.cryptua=off";
+        fastcgi_param  PHP_VALUE "memory_limit=756M \n max_execution_time=18000";
+        fastcgi_read_timeout 600s;
+        fastcgi_connect_timeout 600s;
+        
+        fastcgi_index  index.php;
+        fastcgi_param  SCRIPT_FILENAME  \$document_root\$fastcgi_script_name;
+        fastcgi_param  PATH_INFO        \$fastcgi_path_info;
+        include        fastcgi_params;
+        
+        fastcgi_param MAGE_RUN_TYPE $MAGENTO_MODE;
+    }
+    
+    # 添加 FastCGI 缓存设置
+    fastcgi_cache_path /tmp/nginx_cache levels=1:2 keys_zone=MAGENTO:100m inactive=60m;
+    fastcgi_cache_key "\$request_method\$request_uri";
+    fastcgi_cache_use_stale error timeout invalid_header http_500;
+    fastcgi_cache_valid 200 60m;
     
     include $MAGENTO_ROOT/nginx.conf.sample;
 }
@@ -233,6 +253,17 @@ systemctl restart nginx || error "Failed to restart Nginx"
 if ! systemctl is-active --quiet nginx; then
     error "Nginx failed to start. Check logs for details."
 fi
+
+# 添加更多调试信息
+log "Nginx Configuration:"
+log "Testing configuration file:"
+nginx -T | grep -A 50 "$DOMAIN.conf"
+log "Checking FastCGI socket:"
+ls -l /run/php/php8.2-fpm-magento.sock
+log "Checking PHP-FPM pools:"
+ls -l /etc/php/8.2/fpm/pool.d/
+log "Checking Nginx user:"
+ps aux | grep nginx | grep master
 
 log "Virtual host configuration completed successfully!"
 log "Your site should now be accessible at: http://$DOMAIN"
