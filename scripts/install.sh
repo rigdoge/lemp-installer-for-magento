@@ -824,9 +824,17 @@ if [ "$SKIP_OPENSEARCH" != "true" ]; then
         mkdir -p /var/lib/opensearch
         mkdir -p /var/log/opensearch
 
-        # 移动配置文件到标准位置
-        mv /usr/local/opensearch/config/* /etc/opensearch/
-        rm -rf /usr/local/opensearch/config
+        # 移动解压后的目录
+        log "Setting up OpenSearch..."
+        mv opensearch-2.12.0 /usr/local/opensearch
+        rm "${OPENSEARCH_PACKAGE}"
+
+        # 保存默认配置并移动到标准位置
+        log "Moving configuration files..."
+        if [ -d "/usr/local/opensearch/config" ]; then
+            cp -r /usr/local/opensearch/config/* /etc/opensearch/
+            rm -rf /usr/local/opensearch/config
+        fi
         ln -s /etc/opensearch /usr/local/opensearch/config
 
         # 设置权限
@@ -836,24 +844,6 @@ if [ "$SKIP_OPENSEARCH" != "true" ]; then
         chmod 750 /etc/opensearch
         chmod 750 /var/lib/opensearch
         chmod 750 /var/log/opensearch
-
-        # 移动解压后的目录并保留默认配置
-        log "Setting up OpenSearch..."
-        mv opensearch-2.12.0 /usr/local/opensearch
-        rm "${OPENSEARCH_PACKAGE}"
-
-        # 保存原始配置文件
-        if [ -f "/usr/local/opensearch/config/opensearch.yml.orig" ]; then
-            cp /usr/local/opensearch/config/opensearch.yml.orig /usr/local/opensearch/config/opensearch.yml.default
-        else
-            cp /usr/local/opensearch/config/opensearch.yml /usr/local/opensearch/config/opensearch.yml.default
-        fi
-
-        if [ -f "/usr/local/opensearch/config/jvm.options.orig" ]; then
-            cp /usr/local/opensearch/config/jvm.options.orig /usr/local/opensearch/config/jvm.options.default
-        else
-            cp /usr/local/opensearch/config/jvm.options /usr/local/opensearch/config/jvm.options.default
-        fi
 
         # 创建 OpenSearch 用户和组
         log "Creating OpenSearch user and group..."
