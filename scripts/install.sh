@@ -64,6 +64,7 @@ log "Cleaning up previous MySQL installations..."
 # 停止可能运行的 MySQL 服务
 systemctl stop mysql || true
 systemctl stop mysqld || true
+systemctl stop mariadb || true
 
 # 删除所有 MySQL 相关包
 apt-get remove --purge -y mysql* mariadb*
@@ -75,46 +76,65 @@ rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
 rm -f /etc/apt/sources.list.d/mysql.list
 rm -f /usr/share/keyrings/mysql*
 
-# 添加 MySQL GPG key 和仓库
-log "Adding MySQL repository..."
-apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C
-echo "deb http://repo.mysql.com/apt/debian $(lsb_release -sc) mysql-8.0" | tee /etc/apt/sources.list.d/mysql.list
+if [[ "$ARCH" == "x86_64" ]]; then
+    # 添加 MySQL GPG key 和仓库
+    log "Adding MySQL repository..."
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys B7B3B788A8D3785C
+    echo "deb http://repo.mysql.com/apt/debian $(lsb_release -sc) mysql-8.0" | tee /etc/apt/sources.list.d/mysql.list
+    
+    # 更新包列表
+    apt-get update || error "Failed to update package lists after adding MySQL repository"
+    
+    # 安装 MySQL
+    log "Installing MySQL..."
+    apt-get install -y mysql-server
+    
+    # 启动 MySQL
+    systemctl start mysql || error "Failed to start MySQL"
+    systemctl enable mysql
+else
+    # 安装 MariaDB
+    log "Installing MariaDB for ARM64..."
+    apt-get install -y mariadb-server mariadb-client
+    
+    # 启动 MariaDB
+    systemctl start mariadb || error "Failed to start MariaDB"
+    systemctl enable mariadb
+fi
 
-# 更新包列表
-apt-get update || error "Failed to update package lists after adding MySQL repository"
-
-# 第2阶段：安装数据库
-log "Stage 2: Installing MySQL..."
-# 预配置数据库 root 密码
-DB_ROOT_PASSWORD="magento"
-
-# 安装 MySQL
-log "Installing MySQL..."
-apt-get install -y mysql-server
-
-# 启动 MySQL
-systemctl start mysql || error "Failed to start MySQL"
-systemctl enable mysql
-
-# 等待 MySQL 完全启动
-log "Waiting for MySQL to start..."
+# 等待数据库完全启动
+log "Waiting for database to start..."
 for i in {1..30}; do
-    if mysqladmin ping &>/dev/null; then
-        break
+    if [[ "$ARCH" == "x86_64" ]]; then
+        if mysqladmin ping &>/dev/null; then
+            break
+        fi
+    else
+        if mysqladmin ping &>/dev/null; then
+            break
+        fi
     fi
     sleep 1
 done
 
 # 设置 root 密码
-log "Setting MySQL root password..."
-if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
-    log "MySQL root password set successfully"
+log "Setting database root password..."
+if [[ "$ARCH" == "x86_64" ]]; then
+    if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
+        log "MySQL root password set successfully"
+    else
+        error "Failed to set MySQL root password"
+    fi
 else
-    error "Failed to set MySQL root password"
+    if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
+        log "MariaDB root password set successfully"
+    else
+        error "Failed to set MariaDB root password"
+    fi
 fi
 
-# 配置 MySQL
-log "Configuring MySQL..."
+# 配置数据库
+log "Configuring database..."
 cat > /etc/mysql/conf.d/magento.cnf <<EOF
 [mysqld]
 innodb_buffer_pool_size = 1G
@@ -129,11 +149,15 @@ innodb_lock_wait_timeout = 50
 transaction-isolation = READ-COMMITTED
 EOF
 
-# 重启 MySQL 使配置生效
-systemctl restart mysql || error "Failed to restart MySQL"
+# 重启数据库使配置生效
+if [[ "$ARCH" == "x86_64" ]]; then
+    systemctl restart mysql || error "Failed to restart MySQL"
+else
+    systemctl restart mariadb || error "Failed to restart MariaDB"
+fi
 
-# 设置 MySQL 安全配置
-log "Securing MySQL installation..."
+# 设置数据库安全配置
+log "Securing database installation..."
 if mysql -u root -p"${DB_ROOT_PASSWORD}" <<EOF
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
@@ -142,9 +166,17 @@ DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 EOF
 then
-    log "MySQL security configuration completed successfully"
+    if [[ "$ARCH" == "x86_64" ]]; then
+        log "MySQL security configuration completed successfully"
+    else
+        log "MariaDB security configuration completed successfully"
+    fi
 else
-    error "Failed to configure MySQL security settings"
+    if [[ "$ARCH" == "x86_64" ]]; then
+        error "Failed to configure MySQL security settings"
+    else
+        error "Failed to configure MariaDB security settings"
+    fi
 fi
 
 # 第3阶段：安装PHP和扩展
