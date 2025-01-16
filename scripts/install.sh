@@ -1022,35 +1022,54 @@ EOF
         log "Starting OpenSearch service..."
         systemctl start opensearch
 
-        # 等待服务启动
+        # 等待服务启动并检查状态
         log "Waiting for OpenSearch to start..."
         max_attempts=30
         attempt=1
         while [ $attempt -le $max_attempts ]; do
-            if curl -s "http://localhost:9200/_cluster/health" &>/dev/null; then
-                log "OpenSearch is running"
-                break
+            # 检查服务状态
+            if systemctl status opensearch | grep -q "active (running)"; then
+                log "OpenSearch service is running"
+                # 再次检查 HTTP 端口
+                if curl -s "http://localhost:9200" &>/dev/null; then
+                    log "OpenSearch is responding on HTTP port"
+                    break
+                fi
             fi
-            log "Attempt $attempt/$max_attempts: Waiting for OpenSearch to start..."
-            if [ $attempt -eq $max_attempts ]; then
-                log "Checking OpenSearch logs..."
-                journalctl -u opensearch --no-pager | tail -n 50
+
+            # 每5次尝试检查一次日志
+            if [ $((attempt % 5)) -eq 0 ]; then
+                log "Checking OpenSearch status and logs..."
                 systemctl status opensearch || true
+                if [ -f /var/log/opensearch/magento-cluster.log ]; then
+                    tail -n 20 /var/log/opensearch/magento-cluster.log
+                fi
+                if [ -f /var/log/opensearch/gc.log ]; then
+                    tail -n 5 /var/log/opensearch/gc.log
+                fi
             fi
+
+            log "Attempt $attempt/$max_attempts: Waiting for OpenSearch to start..."
             sleep 2
             ((attempt++))
+
+            # 如果到达最后一次尝试，显示详细信息
+            if [ $attempt -eq $max_attempts ]; then
+                log "Final check - Displaying detailed information:"
+                systemctl status opensearch || true
+                journalctl -u opensearch --no-pager | tail -n 50
+                ps aux | grep opensearch
+                netstat -tulpn | grep 9200 || true
+                ls -la /var/log/opensearch/
+                ls -la /etc/opensearch/
+            fi
         done
 
-        # 如果服务没有启动，尝试重启
+        # 如果服务没有启动，显示错误信息
         if ! systemctl is-active --quiet opensearch; then
-            log "OpenSearch failed to start automatically, attempting restart..."
-            systemctl restart opensearch
-            sleep 5
-            if systemctl is-active --quiet opensearch; then
-                log "OpenSearch successfully started after restart"
-            else
-                warn "OpenSearch failed to start automatically. You may need to start it manually with: sudo systemctl start opensearch"
-            fi
+            warn "OpenSearch failed to start. Please check the logs at /var/log/opensearch/"
+            warn "You can try starting it manually with: sudo systemctl start opensearch"
+            warn "And check the status with: sudo systemctl status opensearch"
         fi
     else
         log "OpenSearch service is already running"
