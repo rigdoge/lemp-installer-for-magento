@@ -36,6 +36,40 @@ if [[ $EUID -ne 0 ]]; then
    error "This script must be run as root"
 fi
 
+# 检查并安装 Java
+log "Checking Java installation..."
+if ! command -v java &> /dev/null; then
+    log "Java not found. Installing OpenJDK 17..."
+    apt-get update
+    apt-get install -y openjdk-17-jdk
+fi
+
+# 验证 Java 安装
+JAVA_VERSION=$(java -version 2>&1 | head -n 1)
+if [[ $? -ne 0 ]]; then
+    error "Failed to verify Java installation"
+fi
+log "Java installation verified: $JAVA_VERSION"
+
+# 设置 Java 环境变量
+if [ -d "/usr/lib/jvm/java-17-openjdk-amd64" ]; then
+    export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+    export OPENSEARCH_JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+    log "Java environment variables set: JAVA_HOME=$JAVA_HOME"
+else
+    warn "OpenJDK 17 directory not found at expected location"
+    # 尝试查找 Java 安装位置
+    JAVA_PATH=$(readlink -f $(which java))
+    JAVA_HOME=${JAVA_PATH%/bin/java}
+    if [ -n "$JAVA_HOME" ]; then
+        export JAVA_HOME=$JAVA_HOME
+        export OPENSEARCH_JAVA_HOME=$JAVA_HOME
+        log "Java environment variables set using found path: JAVA_HOME=$JAVA_HOME"
+    else
+        error "Could not determine Java installation path"
+    fi
+fi
+
 # 检查 OpenSearch 是否安装
 if ! systemctl is-active --quiet opensearch; then
     error "OpenSearch is not running. Please install and start OpenSearch first."
@@ -112,11 +146,6 @@ chmod +x securityadmin.sh
 
 # 返回原目录
 cd -
-
-# 设置 Java 环境
-log "Setting up Java environment..."
-export OPENSEARCH_JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 
 # 更新 OpenSearch 配置
 log "Updating OpenSearch configuration..."
