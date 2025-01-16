@@ -56,11 +56,153 @@ check_installed() {
     return $?
 }
 
+# 检查服务是否正在运行的函数
 check_service_active() {
     local service=$1
-    systemctl is-active --quiet "$service"
-    return $?
+    if systemctl is-active --quiet "$service"; then
+        return 0
+    fi
+    return 1
 }
+
+# 检查组件版本的函数
+check_version() {
+    local component=$1
+    local version=$2
+    local current_version=$3
+    if [[ "$current_version" == *"$version"* ]]; then
+        log "$component version $current_version is compatible"
+        return 0
+    fi
+    warn "$component version $current_version might not be compatible"
+    return 1
+}
+
+# 检查 Nginx 安装和版本
+check_nginx() {
+    if check_service_active "nginx"; then
+        local nginx_version=$(nginx -v 2>&1 | grep -o '[0-9.]*$')
+        log "Nginx is running, version: $nginx_version"
+        if [[ "$nginx_version" == "1.24."* ]]; then
+            log "Nginx version is compatible"
+            return 0
+        else
+            warn "Running Nginx version might not be compatible"
+            error "Please consider upgrading to Nginx 1.24.x"
+        fi
+    fi
+    return 1
+}
+
+# 检查 PHP 安装和版本
+check_php() {
+    if check_service_active "php8.2-fpm"; then
+        local php_version=$(php -v | head -n1 | grep -o 'PHP [0-9.]*' | cut -d' ' -f2)
+        log "PHP-FPM is running, version: $php_version"
+        if [[ "$php_version" == "8.2."* ]]; then
+            # 检查所需的 PHP 扩展
+            local required_extensions=(
+                "mysql" "zip" "gd" "mbstring" "curl" "xml" 
+                "bcmath" "intl" "soap" "xsl"
+            )
+            local missing_extensions=()
+            
+            for ext in "${required_extensions[@]}"; do
+                if ! php -m | grep -q "^$ext$"; then
+                    missing_extensions+=("$ext")
+                fi
+            done
+            
+            if [ ${#missing_extensions[@]} -eq 0 ]; then
+                log "All required PHP extensions are installed"
+                return 0
+            else
+                warn "Missing PHP extensions: ${missing_extensions[*]}"
+                return 1
+            fi
+        else
+            warn "Running PHP version might not be compatible"
+            error "Please consider upgrading to PHP 8.2.x"
+        fi
+    fi
+    return 1
+}
+
+# 检查 Redis 安装和版本
+check_redis() {
+    if check_service_active "redis-server"; then
+        local redis_version=$(redis-cli --version | grep -o '[0-9.]*')
+        log "Redis is running, version: $redis_version"
+        if [[ "$redis_version" == "7.2."* ]]; then
+            log "Redis version is compatible"
+            return 0
+        else
+            warn "Running Redis version might not be compatible"
+            error "Please consider upgrading to Redis 7.2.x"
+        fi
+    fi
+    return 1
+}
+
+# 检查 RabbitMQ 安装和版本
+check_rabbitmq() {
+    if check_service_active "rabbitmq-server"; then
+        local rabbitmq_version=$(rabbitmqctl version | head -n1)
+        log "RabbitMQ is running, version: $rabbitmq_version"
+        # RabbitMQ 版本检查可以根据需要添加
+        return 0
+    fi
+    return 1
+}
+
+# 检查 Varnish 安装和版本
+check_varnish() {
+    if check_service_active "varnish"; then
+        local varnish_version=$(varnishd -V 2>&1 | grep -o 'varnish-[0-9.]*' | cut -d- -f2)
+        log "Varnish is running, version: $varnish_version"
+        if [[ "$varnish_version" == "7.5."* ]]; then
+            log "Varnish version is compatible"
+            return 0
+        else
+            warn "Running Varnish version might not be compatible"
+            error "Please consider upgrading to Varnish 7.5.x"
+        fi
+    fi
+    return 1
+}
+
+# 在安装前检查所有组件
+log "Checking existing components..."
+
+# 检查 Nginx
+if check_nginx; then
+    log "Skipping Nginx installation as it's already running with compatible version"
+    SKIP_NGINX=true
+fi
+
+# 检查 PHP
+if check_php; then
+    log "Skipping PHP installation as it's already running with compatible version"
+    SKIP_PHP=true
+fi
+
+# 检查 Redis
+if check_redis; then
+    log "Skipping Redis installation as it's already running with compatible version"
+    SKIP_REDIS=true
+fi
+
+# 检查 RabbitMQ
+if check_rabbitmq; then
+    log "Skipping RabbitMQ installation as it's already running"
+    SKIP_RABBITMQ=true
+fi
+
+# 检查 Varnish
+if check_varnish; then
+    log "Skipping Varnish installation as it's already running with compatible version"
+    SKIP_VARNISH=true
+fi
 
 # 检查 MySQL 服务状态的函数
 check_mysql_status() {
@@ -271,71 +413,83 @@ fi
 
 # 第3阶段：安装PHP和扩展
 log "Stage 3: Installing PHP and extensions..."
-if ! check_installed "php8.2-fpm"; then
-    log "Installing PHP and extensions..."
-    apt-get install -y php8.2-fpm \
-        php8.2-cli \
-        php8.2-common \
-        php8.2-mysql \
-        php8.2-zip \
-        php8.2-gd \
-        php8.2-mbstring \
-        php8.2-curl \
-        php8.2-xml \
-        php8.2-bcmath \
-        php8.2-intl \
-        php8.2-soap \
-        php8.2-xsl || error "Failed to install PHP and extensions"
+if [ "$SKIP_PHP" != "true" ]; then
+    if ! check_installed "php8.2-fpm"; then
+        log "Installing PHP and extensions..."
+        apt-get install -y php8.2-fpm \
+            php8.2-cli \
+            php8.2-common \
+            php8.2-mysql \
+            php8.2-zip \
+            php8.2-gd \
+            php8.2-mbstring \
+            php8.2-curl \
+            php8.2-xml \
+            php8.2-bcmath \
+            php8.2-intl \
+            php8.2-soap \
+            php8.2-xsl || error "Failed to install PHP and extensions"
+    else
+        log "PHP 8.2 is already installed"
+    fi
 else
-    log "PHP 8.2 is already installed"
+    log "Skipping PHP installation"
 fi
 
 # 第4阶段：安装Web服务器
 log "Stage 4: Installing Nginx..."
-if ! check_installed "nginx"; then
-    # 添加 Nginx 官方仓库
-    log "Adding Nginx official repository..."
-    curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
-    echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian $(lsb_release -cs) nginx" | tee /etc/apt/sources.list.d/nginx.list
+if [ "$SKIP_NGINX" != "true" ]; then
+    if ! check_installed "nginx"; then
+        # 添加 Nginx 官方仓库
+        log "Adding Nginx official repository..."
+        curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+        echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian $(lsb_release -cs) nginx" | tee /etc/apt/sources.list.d/nginx.list
 
-    # 移除可能存在的旧版本
-    apt-get remove -y nginx nginx-common || true
-    apt-get autoremove -y
+        # 移除可能存在的旧版本
+        apt-get remove -y nginx nginx-common || true
+        apt-get autoremove -y
 
-    # 更新包列表并安装 Nginx
-    apt-get update || error "Failed to update package lists after adding Nginx repository"
-    apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
-    systemctl start nginx
-    systemctl enable nginx
+        # 更新包列表并安装 Nginx
+        apt-get update || error "Failed to update package lists after adding Nginx repository"
+        apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
+        systemctl start nginx
+        systemctl enable nginx
+    else
+        log "Nginx is already installed"
+        nginx -v
+    fi
 else
-    log "Nginx is already installed"
-    nginx -v
+    log "Skipping Nginx installation"
 fi
 
 # 第5阶段：安装缓存和消息队列
 log "Stage 5: Installing caching and message queue services..."
 # Redis
-if ! check_installed "redis-server"; then
-    log "Installing Redis..."
-    log "Adding Redis repository..."
-    curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list
-    apt-get update || error "Failed to update package lists after adding Redis repository"
+if [ "$SKIP_REDIS" != "true" ]; then
+    if ! check_installed "redis-server"; then
+        log "Installing Redis..."
+        log "Adding Redis repository..."
+        curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+        echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/redis.list
+        apt-get update || error "Failed to update package lists after adding Redis repository"
 
-    # 安装 Redis
-    apt-get install -y redis-server || error "Failed to install Redis"
+        # 安装 Redis
+        apt-get install -y redis-server || error "Failed to install Redis"
 
-    # 验证 Redis 版本
-    REDIS_VERSION=$(redis-server --version | grep -o "v=[0-9.]*" | cut -d= -f2)
-    if [[ ! "$REDIS_VERSION" =~ ^7\.2\..* ]]; then
-        warn "Installed Redis version $REDIS_VERSION is not 7.2.x"
+        # 验证 Redis 版本
+        REDIS_VERSION=$(redis-server --version | grep -o "v=[0-9.]*" | cut -d= -f2)
+        if [[ ! "$REDIS_VERSION" =~ ^7\.2\..* ]]; then
+            warn "Installed Redis version $REDIS_VERSION is not 7.2.x"
+        fi
+
+        systemctl start redis-server
+        systemctl enable redis-server
+    else
+        log "Redis is already installed"
+        redis-cli --version
     fi
-
-    systemctl start redis-server
-    systemctl enable redis-server
 else
-    log "Redis is already installed"
-    redis-cli --version
+    log "Skipping Redis installation"
 fi
 
 # Memcached
@@ -350,90 +504,91 @@ else
 fi
 
 # RabbitMQ
-if ! check_installed "rabbitmq-server"; then
-    log "Installing RabbitMQ..."
-    log "Adding RabbitMQ and Erlang repositories..."
+if [ "$SKIP_RABBITMQ" != "true" ]; then
+    if ! check_installed "rabbitmq-server"; then
+        log "Installing RabbitMQ..."
+        log "Adding RabbitMQ and Erlang repositories..."
 
-    # 彻底清理 RabbitMQ 和 Erlang 的残留
-    log "Cleaning up previous RabbitMQ installations..."
-    # 停止服务
-    systemctl stop rabbitmq-server || true
-    systemctl stop erlang || true
+        # 彻底清理 RabbitMQ 和 Erlang 的残留
+        log "Cleaning up previous RabbitMQ installations..."
+        # 停止服务
+        systemctl stop rabbitmq-server || true
+        systemctl stop erlang || true
 
-    # 删除包
-    apt-get remove --purge -y rabbitmq-server erlang* || true
-    apt-get autoremove -y
-    apt-get autoclean
+        # 删除包
+        apt-get remove --purge -y rabbitmq-server erlang* || true
+        apt-get autoremove -y
+        apt-get autoclean
 
-    # 删除配置文件和数据
-    rm -rf /var/lib/rabbitmq/
-    rm -rf /var/log/rabbitmq/
-    rm -rf /etc/rabbitmq/
-    rm -rf /usr/lib/rabbitmq/
-    rm -f /etc/apt/sources.list.d/rabbitmq*
-    rm -f /etc/apt/sources.list.d/erlang*
-    rm -f /usr/share/keyrings/rabbitmq*
-    rm -f /usr/share/keyrings/net.launchpad.ppa.rabbitmq*
-    rm -f /etc/apt/trusted.gpg.d/rabbitmq*
+        # 删除配置文件和数据
+        rm -rf /var/lib/rabbitmq/
+        rm -rf /var/log/rabbitmq/
+        rm -rf /etc/rabbitmq/
+        rm -rf /usr/lib/rabbitmq/
+        rm -f /etc/apt/sources.list.d/rabbitmq*
+        rm -f /etc/apt/sources.list.d/erlang*
+        rm -f /usr/share/keyrings/rabbitmq*
+        rm -f /usr/share/keyrings/net.launchpad.ppa.rabbitmq*
+        rm -f /etc/apt/trusted.gpg.d/rabbitmq*
 
-    # 清理 apt 缓存
-    apt-get clean
-    rm -rf /var/lib/apt/lists/*
-    apt-get update
-
-    if [[ "$ARCH" == "x86_64" ]]; then
-        # x86_64 架构使用 RabbitMQ 官方仓库
-        log "Installing RabbitMQ for x86_64 architecture..."
-        
-        # 添加 Erlang 仓库密钥
-        curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-erlang.gpg
-        
-        # 添加 RabbitMQ 服务器仓库密钥
-        curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-server.gpg
-        
-        tee /etc/apt/sources.list.d/rabbitmq.list <<EOF
+        if [[ "$ARCH" == "x86_64" ]]; then
+            # x86_64 架构使用 RabbitMQ 官方仓库
+            log "Installing RabbitMQ for x86_64 architecture..."
+            
+            # 添加 Erlang 仓库密钥
+            curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-erlang.gpg
+            
+            # 添加 RabbitMQ 服务器仓库密钥
+            curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-server.gpg
+            
+            tee /etc/apt/sources.list.d/rabbitmq.list <<EOF
 deb [signed-by=/usr/share/keyrings/rabbitmq-erlang.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/debian $(lsb_release -cs) main
 deb [signed-by=/usr/share/keyrings/rabbitmq-server.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/debian $(lsb_release -cs) main
 EOF
-        
-        # 更新包列表
-        apt-get update || error "Failed to update package lists after adding repositories"
-        
-        # 安装 Erlang 和 RabbitMQ
-        log "Installing Erlang and RabbitMQ..."
-        apt-get install -y erlang-base \
-            erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
-            erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
-            erlang-runtime-tools erlang-snmp erlang-ssl \
-            erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl \
-            rabbitmq-server || error "Failed to install Erlang and RabbitMQ"
+            
+            # 更新包列表
+            apt-get update || error "Failed to update package lists after adding repositories"
+            
+            # 安装 Erlang 和 RabbitMQ
+            log "Installing Erlang and RabbitMQ..."
+            apt-get install -y erlang-base \
+                erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
+                erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
+                erlang-runtime-tools erlang-snmp erlang-ssl \
+                erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl \
+                rabbitmq-server || error "Failed to install Erlang and RabbitMQ"
+        else
+            # ARM64 架构使用系统仓库的 RabbitMQ
+            log "Installing RabbitMQ for ARM64 architecture..."
+            apt-get install -y rabbitmq-server || error "Failed to install RabbitMQ"
+        fi
+
+        systemctl start rabbitmq-server
+        systemctl enable rabbitmq-server
+
+        # 启用 RabbitMQ 管理插件
+        rabbitmq-plugins enable rabbitmq_management
     else
-        # ARM64 架构使用系统仓库的 RabbitMQ
-        log "Installing RabbitMQ for ARM64 architecture..."
-        apt-get install -y rabbitmq-server || error "Failed to install RabbitMQ"
+        log "RabbitMQ is already installed"
+        rabbitmqctl version
     fi
-
-    systemctl start rabbitmq-server
-    systemctl enable rabbitmq-server
-
-    # 启用 RabbitMQ 管理插件
-    rabbitmq-plugins enable rabbitmq_management
 else
-    log "RabbitMQ is already installed"
-    rabbitmqctl version
+    log "Skipping RabbitMQ installation"
 fi
 
-# 第6阶段：安装性能优化工具
-log "Stage 6: Installing performance optimization tools..."
 # Varnish
-if ! check_installed "varnish"; then
-    log "Installing Varnish..."
-    apt-get install -y varnish=7.5.* || error "Failed to install Varnish 7.5"
-    systemctl start varnish
-    systemctl enable varnish
+if [ "$SKIP_VARNISH" != "true" ]; then
+    if ! check_installed "varnish"; then
+        log "Installing Varnish..."
+        apt-get install -y varnish=7.5.* || error "Failed to install Varnish 7.5"
+        systemctl start varnish
+        systemctl enable varnish
+    else
+        log "Varnish is already installed"
+        varnishd -V
+    fi
 else
-    log "Varnish is already installed"
-    varnishd -V
+    log "Skipping Varnish installation"
 fi
 
 # OpenSearch
