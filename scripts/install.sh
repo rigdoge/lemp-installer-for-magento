@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # LEMP Stack Installer for Magento
+# Version: 1.0.15
 # Author: Your Name
 # Date: $(date)
 
