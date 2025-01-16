@@ -54,8 +54,14 @@ log "Updating system packages..."
 apt-get update || error "Failed to update system packages"
 apt-get upgrade -y || error "Failed to upgrade system packages"
 
-# 安装Nginx
-log "Installing Nginx..."
+# 添加 Nginx 官方仓库
+log "Adding Nginx official repository..."
+curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian $(lsb_release -cs) nginx" > /etc/apt/sources.list.d/nginx.list
+
+# 更新包列表并安装 Nginx
+apt-get update
+log "Installing Nginx 1.24..."
 apt-get install -y nginx || error "Failed to install Nginx"
 systemctl start nginx
 systemctl enable nginx
