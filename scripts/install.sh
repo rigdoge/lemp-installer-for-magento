@@ -818,6 +818,25 @@ if [ "$SKIP_OPENSEARCH" != "true" ]; then
             mv /usr/local/opensearch /usr/local/opensearch.bak.$(date +%Y%m%d_%H%M%S)
         fi
 
+        # 创建标准配置目录
+        log "Creating standard configuration directories..."
+        mkdir -p /etc/opensearch
+        mkdir -p /var/lib/opensearch
+        mkdir -p /var/log/opensearch
+
+        # 移动配置文件到标准位置
+        mv /usr/local/opensearch/config/* /etc/opensearch/
+        rm -rf /usr/local/opensearch/config
+        ln -s /etc/opensearch /usr/local/opensearch/config
+
+        # 设置权限
+        chown -R opensearch:opensearch /etc/opensearch
+        chown -R opensearch:opensearch /var/lib/opensearch
+        chown -R opensearch:opensearch /var/log/opensearch
+        chmod 750 /etc/opensearch
+        chmod 750 /var/lib/opensearch
+        chmod 750 /var/log/opensearch
+
         # 移动解压后的目录并保留默认配置
         log "Setting up OpenSearch..."
         mv opensearch-2.12.0 /usr/local/opensearch
@@ -861,7 +880,7 @@ EOF
 
         # 配置 OpenSearch
         log "Configuring OpenSearch..."
-        cat > /usr/local/opensearch/config/opensearch.yml <<EOF
+        cat > /etc/opensearch/opensearch.yml <<EOF
 # 集群设置
 cluster.name: magento-cluster
 node.name: node-1
@@ -906,7 +925,7 @@ EOF
 
         # 配置 JVM 选项
         log "Configuring JVM options..."
-        cat > /usr/local/opensearch/config/jvm.options <<EOF
+        cat > /etc/opensearch/jvm.options <<EOF
 ################################################################
 ## IMPORTANT: JVM heap size - 根据系统内存调整
 ################################################################
@@ -961,7 +980,7 @@ Type=notify
 RuntimeDirectory=opensearch
 PrivateTmp=true
 Environment=OPENSEARCH_HOME=/usr/local/opensearch
-Environment=OPENSEARCH_PATH_CONF=/usr/local/opensearch/config
+Environment=OPENSEARCH_PATH_CONF=/etc/opensearch
 Environment=JAVA_HOME=/usr/local/opensearch/jdk
 Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
 
