@@ -80,17 +80,17 @@ apt-get update
 
 # 第2阶段：安装数据库
 log "Stage 2: Installing MySQL..."
-# 预配置 MySQL root 密码
-MYSQL_ROOT_PASSWORD="magento"
+# 预配置数据库 root 密码
+DB_ROOT_PASSWORD="magento"
 
-# 下载 MySQL 服务器和客户端包
 if [[ "$ARCH" == "x86_64" ]]; then
-    log "Downloading MySQL packages for x86_64..."
+    log "Installing MySQL for x86_64..."
+    # 下载 MySQL 服务器和客户端包
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-server-8.0_8.0.40-2_amd64.deb
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-8.0_8.0.40-2_amd64.deb
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-common_8.0.40-2_all.deb
 elif [[ "$ARCH" == "aarch64" ]]; then
-    log "Downloading MySQL packages for ARM64..."
+    log "Installing MySQL for ARM64..."
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-server-8.0_8.0.40-2_arm64.deb
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-8.0_8.0.40-2_arm64.deb
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-common_8.0.40-2_all.deb
@@ -102,7 +102,6 @@ fi
 apt-get install -y libaio1 libmecab2 libsasl2-2
 
 # 安装 MySQL 包
-log "Installing MySQL packages..."
 if [[ "$ARCH" == "x86_64" ]]; then
     dpkg -i mysql-common_8.0.40-2_all.deb
     dpkg -i mysql-client-8.0_8.0.40-2_amd64.deb
@@ -134,7 +133,7 @@ done
 
 # 设置 root 密码
 log "Setting MySQL root password..."
-if mysqladmin -u root password "${MYSQL_ROOT_PASSWORD}"; then
+if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
     log "MySQL root password set successfully"
 else
     error "Failed to set MySQL root password"
@@ -161,7 +160,7 @@ systemctl restart mysql || error "Failed to restart MySQL"
 
 # 设置 MySQL 安全配置
 log "Securing MySQL installation..."
-if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
+if mysql -u root -p"${DB_ROOT_PASSWORD}" <<EOF
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
