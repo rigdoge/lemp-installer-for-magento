@@ -157,18 +157,42 @@ apt-get install -y webmin || error "Failed to install Webmin"
 # Security Components (Latest)
 log "Installing security components..."
 apt-get install -y fail2ban || error "Failed to install Fail2ban"
-apt-get install -y certbot || error "Failed to install Certbot"
-apt-get install -y nginx-module-modsecurity modsecurity-crs || error "Failed to install ModSecurity"
+apt-get install -y certbot python3-certbot-nginx || error "Failed to install Certbot"
+
+# Install ModSecurity for Nginx
+log "Installing ModSecurity for Nginx..."
+apt-get install -y nginx-module-modsecurity modsecurity-crs || error "Failed to install ModSecurity for Nginx"
 
 # Configure ModSecurity
 log "Configuring ModSecurity..."
 mkdir -p /etc/nginx/modsec
-cp /etc/modsecurity/modsecurity.conf-recommended /etc/nginx/modsec/modsecurity.conf
+wget -P /etc/nginx/modsec/ https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/modsecurity.conf-recommended
+mv /etc/nginx/modsec/modsecurity.conf-recommended /etc/nginx/modsec/modsecurity.conf
 sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsec/modsecurity.conf
-cp -R /usr/share/modsecurity-crs/rules /etc/nginx/modsec/
+
+# Download and configure OWASP CRS
+wget https://github.com/coreruleset/coreruleset/archive/v3.3.5.tar.gz
+tar -xzf v3.3.5.tar.gz
+mv coreruleset-3.3.5/rules /etc/nginx/modsec/
+rm -rf coreruleset-3.3.5 v3.3.5.tar.gz
+
+# Create main ModSecurity configuration file
 cat > /etc/nginx/modsec/main.conf <<EOF
 Include /etc/nginx/modsec/modsecurity.conf
 Include /etc/nginx/modsec/rules/*.conf
+
+# Magento specific rules
+SecRule REQUEST_URI "@beginsWith /admin" "id:1000,phase:1,pass,nolog,ctl:ruleEngine=Off"
+SecRule REQUEST_URI "@beginsWith /static/" "id:1001,phase:1,pass,nolog,ctl:ruleEngine=Off"
+SecRule REQUEST_URI "@beginsWith /media/" "id:1002,phase:1,pass,nolog,ctl:ruleEngine=Off"
+EOF
+
+# Add ModSecurity module to Nginx configuration
+cat > /etc/nginx/conf.d/modsecurity.conf <<EOF
+load_module modules/ngx_http_modsecurity_module.so;
+
+modsecurity on;
+modsecurity_rules_file /etc/nginx/modsec/main.conf;
 EOF
 
 # Configure Fail2ban
