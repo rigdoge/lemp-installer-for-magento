@@ -842,15 +842,9 @@ EOF
 
         # 设置系统参数
         log "Setting system parameters..."
-        cat > /etc/sysctl.d/opensearch.conf <<EOF
-vm.max_map_count = 262144
-EOF
-        # 立即应用系统参数
-        sysctl -p /etc/sysctl.d/opensearch.conf
-        # 确保系统重启时也应用这些参数
-        echo "sysctl -p /etc/sysctl.d/opensearch.conf" >> /etc/rc.local
-        chmod +x /etc/rc.local
-
+        # 在 sysctl.conf 中直接设置参数，确保在启动时加载
+        echo "vm.max_map_count = 262144" >> /etc/sysctl.conf
+        
         # 配置 OpenSearch
         log "Configuring OpenSearch..."
         cat > /usr/local/opensearch/config/opensearch.yml <<EOF
@@ -899,11 +893,6 @@ EOF
 8-13:-Xlog:gc*,gc+age=trace,safepoint:file=/var/log/opensearch/gc.log:utctime,pid,tags:filecount=32,filesize=64m
 EOF
 
-        # 创建日志目录并设置权限
-        mkdir -p /var/log/opensearch
-        chown -R opensearch:opensearch /var/log/opensearch
-        chmod 755 /var/log/opensearch
-
         # 检查 JDK 权限
         log "Checking JDK permissions..."
         chmod +x /usr/local/opensearch/jdk/bin/java
@@ -920,7 +909,8 @@ EOF
 Description=OpenSearch
 Documentation=https://opensearch.org/docs/
 Wants=network-online.target
-After=network-online.target sysctl.service
+After=network-online.target
+StartLimitIntervalSec=0
 
 [Service]
 Type=notify
@@ -934,8 +924,11 @@ Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
 User=opensearch
 Group=opensearch
 
-ExecStartPre=/bin/bash -c "sysctl -q -w vm.max_map_count=262144"
-ExecStartPre=/bin/bash -c "ulimit -n 65535"
+# 确保在启动前设置系统参数
+ExecStartPre=/bin/sh -c 'sysctl -w vm.max_map_count=262144'
+ExecStartPre=/bin/sh -c 'ulimit -n 65535'
+ExecStartPre=/bin/sh -c 'mkdir -p /var/log/opensearch && chown opensearch:opensearch /var/log/opensearch'
+ExecStartPre=/bin/sh -c 'mkdir -p /var/lib/opensearch && chown opensearch:opensearch /var/lib/opensearch'
 ExecStart=/usr/local/opensearch/bin/opensearch
 
 # Specifies the maximum file descriptor number
@@ -943,26 +936,13 @@ LimitNOFILE=65535
 LimitNPROC=4096
 LimitAS=infinity
 LimitFSIZE=infinity
-# Enable memory locking
 LimitMEMLOCK=infinity
 
-# Disable timeout logic
-TimeoutStartSec=180
-TimeoutStopSec=180
+# 增加启动超时时间
+TimeoutStartSec=300
+TimeoutStopSec=300
 
-# SIGTERM signal is used to stop OpenSearch
-KillSignal=SIGTERM
-
-# Send the signal only to the JVM rather than its control group
-KillMode=process
-
-# Java process is never killed
-SendSIGKILL=no
-
-# When a JVM receives a SIGTERM signal it exits with code 143
-SuccessExitStatus=143
-
-Restart=on-failure
+Restart=always
 RestartSec=10s
 
 [Install]
@@ -972,15 +952,9 @@ EOF
         # 重新加载 systemd 配置
         systemctl daemon-reload
 
-        # 启动 OpenSearch 服务前确保系统参数已经生效
-        log "Applying system parameters before starting OpenSearch..."
-        sysctl -q -w vm.max_map_count=262144
-        ulimit -n 65535
-
-        # 启动 OpenSearch 服务
-        log "Starting OpenSearch service..."
-        systemctl start opensearch
+        # 启用并启动服务
         systemctl enable opensearch
+        systemctl start opensearch
 
         # 等待 OpenSearch 完全启动
         log "Waiting for OpenSearch to start..."
@@ -992,6 +966,10 @@ EOF
                 break
             fi
             log "Attempt $attempt/$max_attempts: Waiting for OpenSearch to start..."
+            if [ $attempt -eq $max_attempts ]; then
+                log "Checking OpenSearch logs..."
+                journalctl -u opensearch --no-pager | tail -n 50
+            fi
             sleep 2
             ((attempt++))
         done
