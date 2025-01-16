@@ -99,7 +99,11 @@ else
 fi
 
 # 安装依赖
-apt-get install -y libaio1 libmecab2 libsasl2-2
+apt-get install -y libaio1 libmecab2 libsasl2-2 libevent-core-2.1-7 libcgi-fast-perl libcgi-pm-perl \
+    libconfig-inifiles-perl libdbd-mysql-perl libdbi-perl libencode-locale-perl libevent-pthreads-2.1-7 \
+    libfcgi-perl libhtml-parser-perl libhtml-tagset-perl libhttp-date-perl libhttp-message-perl \
+    libio-html-perl liblwp-mediatypes-perl libtimedate-perl liburi-perl libevent-2.1-7 \
+    mysql-client-core-8.0 mysql-common perl-modules-5.36
 
 # 安装 MySQL 包
 if [[ "$ARCH" == "x86_64" ]]; then
