@@ -485,6 +485,9 @@ innodb_flush_method = O_DIRECT
 innodb_thread_concurrency = 4
 innodb_lock_wait_timeout = 50
 transaction-isolation = READ-COMMITTED
+
+# Magento 触发器创建配置
+log_bin_trust_function_creators = 1
 EOF
 
 # 重启数据库使配置生效
@@ -498,6 +501,7 @@ DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
 DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
+GRANT SUPER ON *.* TO 'root'@'localhost';
 FLUSH PRIVILEGES;
 EOF
     then
