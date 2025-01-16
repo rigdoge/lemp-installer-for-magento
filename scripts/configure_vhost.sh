@@ -140,4 +140,23 @@ log "Restarting services..."
 systemctl restart php8.2-fpm
 systemctl restart nginx
 
-log "Configuration completed. Please check http://$DOMAIN" 
+# 检查服务状态
+log "Checking service status..."
+echo "PHP-FPM processes:"
+ps aux | grep php-fpm || true
+echo "PHP-FPM socket:"
+ls -l /run/php/php8.2-fpm-magento.sock || true
+echo "Nginx processes:"
+ps aux | grep nginx || true
+echo "Nginx configuration test:"
+nginx -t || true
+
+# 检查日志
+log "Checking error logs..."
+echo "PHP-FPM error log:"
+tail -n 20 /var/log/php-fpm/magento.error.log || true
+echo "Nginx error log:"
+tail -n 20 /var/log/nginx/$DOMAIN.error.log || true
+
+log "Configuration completed. Please check http://$DOMAIN"
+log "If you still see 502 Bad Gateway, please check the logs above for errors." 
