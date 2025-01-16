@@ -90,7 +90,10 @@ cat > "$PHP_FPM_POOL_CONF" <<EOF
 [magento]
 user = $PHP_USER
 group = $PHP_GROUP
-listen = 127.0.0.1:9000
+listen = /run/php/php8.2-fpm-magento.sock
+listen.owner = $PHP_USER
+listen.group = $PHP_GROUP
+listen.mode = 0660
 
 pm = dynamic
 pm.max_children = 50
@@ -132,10 +135,6 @@ fi
 
 # 创建虚拟主机配置
 cat > "/etc/nginx/sites-available/$DOMAIN.conf" <<EOF
-upstream fastcgi_backend {
-    server 127.0.0.1:9000;
-}
-
 server {
     listen 80;
     server_name $DOMAIN;
