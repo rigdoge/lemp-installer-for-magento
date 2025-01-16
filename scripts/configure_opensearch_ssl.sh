@@ -85,10 +85,82 @@ EOF
 chown -R opensearch:opensearch "$CONFIG_DIR"
 chmod 600 "$CONFIG_DIR/opensearch.yml"
 
-# 复制演示配置文件
-log "Copying demo configuration files..."
-cp -r /usr/local/opensearch/plugins/opensearch-security/securityconfig/* "$CONFIG_DIR/"
-chown -R opensearch:opensearch "$CONFIG_DIR"
+# 创建安全配置目录
+log "Creating security configuration..."
+SECURITY_CONFIG_DIR="$CONFIG_DIR/opensearch-security"
+mkdir -p "$SECURITY_CONFIG_DIR"
+
+# 生成内部用户配置
+log "Generating internal users configuration..."
+cat > "$SECURITY_CONFIG_DIR/internal_users.yml" <<EOF
+_meta:
+  type: "internalusers"
+  config_version: 2
+
+# 默认管理员用户
+admin:
+  hash: "\$2y\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  reserved: true
+  backend_roles:
+  - "admin"
+  description: "Admin user"
+
+# 新用户
+$USERNAME:
+  hash: "\$2y\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"
+  reserved: false
+  backend_roles:
+  - "admin"
+  description: "Custom admin user"
+EOF
+
+# 生成角色配置
+log "Generating roles configuration..."
+cat > "$SECURITY_CONFIG_DIR/roles.yml" <<EOF
+_meta:
+  type: "roles"
+  config_version: 2
+
+# 管理员角色
+admin_role:
+  reserved: true
+  hidden: false
+  cluster_permissions:
+  - "unlimited"
+  index_permissions:
+  - index_patterns:
+    - "*"
+    allowed_actions:
+    - "unlimited"
+  tenant_permissions:
+  - tenant_patterns:
+    - "*"
+    allowed_actions:
+    - "unlimited"
+EOF
+
+# 生成角色映射配置
+log "Generating roles mapping configuration..."
+cat > "$SECURITY_CONFIG_DIR/roles_mapping.yml" <<EOF
+_meta:
+  type: "rolesmapping"
+  config_version: 2
+
+# 管理员角色映射
+admin_role:
+  reserved: true
+  hidden: false
+  backend_roles:
+  - "admin"
+  hosts: []
+  users:
+  - "admin"
+  - "$USERNAME"
+EOF
+
+# 设置权限
+chown -R opensearch:opensearch "$SECURITY_CONFIG_DIR"
+chmod 600 "$SECURITY_CONFIG_DIR"/*
 
 # 重启 OpenSearch 并等待初始化完成
 log "Restarting OpenSearch..."
