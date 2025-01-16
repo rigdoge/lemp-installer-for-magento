@@ -270,22 +270,20 @@ apt-get clean
 rm -rf /var/lib/apt/lists/*
 apt-get update
 
-# 添加 Erlang 仓库
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/setup.deb.sh" | bash
+# 添加 Erlang Solutions 仓库
+log "Adding Erlang Solutions repository..."
+wget -O- https://packages.erlang-solutions.com/ubuntu/erlang_solutions.asc | gpg --dearmor > /usr/share/keyrings/erlang-solutions.gpg
+echo "deb [signed-by=/usr/share/keyrings/erlang-solutions.gpg] https://packages.erlang-solutions.com/debian $(lsb_release -cs) contrib" | tee /etc/apt/sources.list.d/erlang-solutions.list
 
 # 添加 RabbitMQ 仓库
 curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/setup.deb.sh" | bash
 
 # 更新包列表
-apt-get update || error "Failed to update package lists after adding RabbitMQ repositories"
+apt-get update || error "Failed to update package lists after adding repositories"
 
 # 安装 Erlang
 log "Installing Erlang..."
-apt-get install -y erlang-base \
-    erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
-    erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
-    erlang-runtime-tools erlang-snmp erlang-ssl \
-    erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl || error "Failed to install Erlang"
+apt-get install -y esl-erlang || error "Failed to install Erlang"
 
 # 安装 RabbitMQ
 log "Installing RabbitMQ..."
