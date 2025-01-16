@@ -913,24 +913,45 @@ EOF
         # 重新加载 systemd 配置
         systemctl daemon-reload
 
-        # 启动 OpenSearch 服务
-        log "Starting OpenSearch service..."
-        systemctl start opensearch
-        systemctl enable opensearch
-
         # 等待服务启动并检查日志
         log "Waiting for OpenSearch to start..."
-        for i in {1..60}; do
+        max_attempts=30
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+            # 检查服务状态
+            if ! systemctl is-active --quiet opensearch; then
+                log "Checking OpenSearch service status..."
+                systemctl status opensearch || true
+            fi
+
+            # 检查日志文件
+            for logfile in /var/log/opensearch/*.log; do
+                if [ -f "$logfile" ]; then
+                    log "Latest log entries from $logfile:"
+                    tail -n 5 "$logfile"
+                fi
+            done
+
+            # 尝试连接到 OpenSearch
             if curl -s "http://localhost:9200/_cluster/health" &>/dev/null; then
                 log "OpenSearch is running"
+                curl -s "http://localhost:9200" | grep version
                 break
             fi
-            if [ -f /var/log/opensearch/magento-cluster.log ]; then
-                log "Checking OpenSearch logs..."
-                tail -n 20 /var/log/opensearch/magento-cluster.log
+
+            log "Attempt $attempt/$max_attempts: Still waiting..."
+            
+            # 如果尝试次数过多，提供更多信息
+            if [ $attempt -eq $max_attempts ]; then
+                warn "OpenSearch failed to start after $max_attempts attempts"
+                log "Checking system resources..."
+                free -h || true
+                df -h || true
+                error "OpenSearch failed to start. Please check the logs for more details"
             fi
-            log "Attempt $i/60: Still waiting..."
+
             sleep 2
+            ((attempt++))
         done
     else
         log "OpenSearch service is already running"
