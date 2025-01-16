@@ -96,9 +96,9 @@ log "Installing specified versions of required packages..."
 log "Installing Nginx 1.24..."
 apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
 
-# MySQL 8.0.36
-log "Installing MySQL 8.0.36..."
-apt-get install -y mysql-server=8.0.36-1 || error "Failed to install MySQL 8.0.36"
+# MySQL 8.0
+log "Installing MySQL 8.0..."
+apt-get install -y mysql-server=8.0.* || error "Failed to install MySQL 8.0"
 
 # PHP 8.2
 log "Installing PHP 8.2 and extensions..."
