@@ -58,49 +58,29 @@ log "Adding required repositories..."
 
 # MySQL 8.0 Repository
 log "Adding MySQL repository..."
+# 下载并配置 MySQL APT 仓库
 wget https://dev.mysql.com/get/mysql-apt-config_0.8.29-1_all.deb
+# 预配置 MySQL APT 配置包
+echo "mysql-apt-config mysql-apt-config/select-server select mysql-8.0" | debconf-set-selections
+echo "mysql-apt-config mysql-apt-config/select-product select Ok" | debconf-set-selections
 DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.29-1_all.deb
 rm mysql-apt-config_0.8.29-1_all.deb
 
 # Nginx Repository
 log "Adding Nginx repository..."
-curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian $(lsb_release -cs) nginx" > /etc/apt/sources.list.d/nginx.list
 
-# Redis Repository
-log "Adding Redis repository..."
-curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" > /etc/apt/sources.list.d/redis.list
-
-# RabbitMQ Repository
-log "Adding RabbitMQ repository..."
-curl -1sLf "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | gpg --dearmor > /usr/share/keyrings/com.rabbitmq.team.gpg
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.9F4587F226208342.gpg
-
-echo "deb [signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/debian bullseye main" > /etc/apt/sources.list.d/rabbitmq-erlang.list
-echo "deb [signed-by=/usr/share/keyrings/rabbitmq.9F4587F226208342.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/debian bullseye main" > /etc/apt/sources.list.d/rabbitmq-server.list
-
-# Varnish Repository
-log "Adding Varnish repository..."
-curl -s https://packagecloud.io/install/repositories/varnishcache/varnish75/script.deb.sh | bash
-
-# Webmin Repository
-log "Adding Webmin repository..."
-curl -fsSL http://www.webmin.com/jcameron-key.asc | gpg --dearmor -o /usr/share/keyrings/webmin-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/webmin-archive-keyring.gpg] http://download.webmin.com/download/repository sarge contrib" > /etc/apt/sources.list.d/webmin.list
-
-# 更新包列表
+# 更新包列表以包含 MySQL 仓库
 apt-get update
 
 # 第2阶段：安装数据库
 log "Stage 2: Installing MySQL..."
 # 预配置 MySQL root 密码
 MYSQL_ROOT_PASSWORD="magento"
-debconf-set-selections <<< "mysql-community-server mysql-community-server/root-pass password ${MYSQL_ROOT_PASSWORD}"
-debconf-set-selections <<< "mysql-community-server mysql-community-server/re-root-pass password ${MYSQL_ROOT_PASSWORD}"
+echo "mysql-community-server mysql-community-server/root-pass password ${MYSQL_ROOT_PASSWORD}" | debconf-set-selections
+echo "mysql-community-server mysql-community-server/re-root-pass password ${MYSQL_ROOT_PASSWORD}" | debconf-set-selections
+
 # 安装 MySQL
-DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-server mysql-community-client || error "Failed to install MySQL 8.0"
+DEBIAN_FRONTEND=noninteractive apt-get install -y mysql-community-server mysql-community-client || error "Failed to install MySQL 8.0"
 
 # 启动 MySQL
 systemctl start mysql
