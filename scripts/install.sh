@@ -58,6 +58,26 @@ log "Adding required repositories..."
 
 # MySQL 8.0 Repository
 log "Adding MySQL repository..."
+
+# 清理之前的 MySQL 残留
+log "Cleaning up previous MySQL installations..."
+# 停止可能运行的 MySQL 服务
+systemctl stop mysql || true
+systemctl stop mysqld || true
+
+# 删除所有 MySQL 相关包
+apt-get remove --purge -y mysql* mariadb*
+apt-get autoremove -y
+apt-get autoclean
+
+# 删除 MySQL 配置和数据文件
+rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
+rm -f /etc/apt/sources.list.d/mysql.list
+rm -f /usr/share/keyrings/mysql*
+
+# 更新包列表
+apt-get update
+
 # 下载 MySQL 服务器和客户端包
 wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-server_8.0.36-1debian12_amd64.deb
 wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-client_8.0.36-1debian12_amd64.deb
