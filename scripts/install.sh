@@ -171,6 +171,70 @@ check_varnish() {
     return 1
 }
 
+# 检查 OpenSearch 安装和版本
+check_opensearch() {
+    if check_service_active "opensearch"; then
+        if curl -s "http://localhost:9200" &>/dev/null; then
+            local version=$(curl -s "http://localhost:9200" | grep -o '"version" : "[^"]*"' | cut -d'"' -f4)
+            log "OpenSearch is running, version: $version"
+            if [[ "$version" == "2.12.0" ]]; then
+                log "OpenSearch version is compatible"
+                return 0
+            else
+                warn "Current OpenSearch version $version is not 2.12.0"
+                return 1
+            fi
+        fi
+    fi
+    return 1
+}
+
+# 检查 Memcached 安装和状态
+check_memcached() {
+    if check_service_active "memcached"; then
+        local version=$(memcached -h 2>&1 | head -n1 | grep -o '[0-9.]*')
+        log "Memcached is running, version: $version"
+        return 0
+    fi
+    return 1
+}
+
+# 检查 Composer 安装和版本
+check_composer() {
+    if command -v composer &>/dev/null; then
+        local version=$(COMPOSER_ALLOW_SUPERUSER=1 composer --version | grep -o 'version [^ ]*' | cut -d' ' -f2)
+        log "Composer is installed, version: $version"
+        if [[ "$version" == "2.7."* ]]; then
+            log "Composer version is compatible"
+            return 0
+        else
+            warn "Current Composer version $version is not 2.7.x"
+            return 1
+        fi
+    fi
+    return 1
+}
+
+# 检查 phpMyAdmin 安装
+check_phpmyadmin() {
+    if check_installed "phpmyadmin"; then
+        local version=$(dpkg -l | grep "^ii.*phpmyadmin" | awk '{print $3}')
+        log "phpMyAdmin is installed, version: $version"
+        return 0
+    fi
+    return 1
+}
+
+# 检查 Fail2ban 安装和状态
+check_fail2ban() {
+    if check_service_active "fail2ban"; then
+        local version=$(fail2ban-client --version 2>&1 | head -n1 | grep -o 'v[0-9.]*')
+        log "Fail2ban is running, version: $version"
+        return 0
+    fi
+    return 1
+}
+
 # 在安装前检查所有组件
 log "Checking existing components..."
 
@@ -202,6 +266,198 @@ fi
 if check_varnish; then
     log "Skipping Varnish installation as it's already running with compatible version"
     SKIP_VARNISH=true
+fi
+
+# 检查 OpenSearch
+if [ "$SKIP_OPENSEARCH" != "true" ]; then
+    if [[ ! -d "/usr/local/opensearch" ]]; then
+        log "Installing OpenSearch..."
+        log "Installing OpenSearch 2.12..."
+        wget https://artifacts.opensearch.org/releases/bundle/opensearch/2.12.0/opensearch-2.12.0-linux-x64.tar.gz
+        tar -xzf opensearch-2.12.0-linux-x64.tar.gz
+        mv opensearch-2.12.0 /usr/local/opensearch
+        rm opensearch-2.12.0-linux-x64.tar.gz
+
+        # 创建 OpenSearch 用户和组
+        log "Creating OpenSearch user and group..."
+        useradd -r -s /sbin/nologin opensearch || true
+        chown -R opensearch:opensearch /usr/local/opensearch
+
+        # 创建数据和日志目录
+        mkdir -p /var/lib/opensearch /var/log/opensearch
+        chown -R opensearch:opensearch /var/lib/opensearch /var/log/opensearch
+
+        # 配置 OpenSearch
+        log "Configuring OpenSearch..."
+        cat > /usr/local/opensearch/config/opensearch.yml <<EOF
+cluster.name: magento-cluster
+node.name: node-1
+path.data: /var/lib/opensearch
+path.logs: /var/log/opensearch
+network.host: 127.0.0.1
+http.port: 9200
+discovery.type: single-node
+EOF
+
+        # 创建系统服务
+        log "Creating OpenSearch service..."
+        cat > /etc/systemd/system/opensearch.service <<EOF
+[Unit]
+Description=OpenSearch
+Documentation=https://opensearch.org/docs/
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+RuntimeDirectory=opensearch
+PrivateTmp=true
+Environment=OPENSEARCH_HOME=/usr/local/opensearch
+Environment=OPENSEARCH_PATH_CONF=/usr/local/opensearch/config
+Environment=JAVA_HOME=/usr/local/opensearch/jdk
+Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
+Environment=ES_JAVA_OPTS="-Xms1g -Xmx1g"
+
+User=opensearch
+Group=opensearch
+
+ExecStart=/usr/local/opensearch/bin/opensearch
+
+# Specifies the maximum file descriptor number
+LimitNOFILE=65535
+LimitNPROC=4096
+LimitAS=infinity
+LimitFSIZE=infinity
+
+# Disable timeout logic
+TimeoutStopSec=0
+
+# SIGTERM signal is used to stop OpenSearch
+KillSignal=SIGTERM
+
+# Send the signal only to the JVM rather than its control group
+KillMode=process
+
+# Java process is never killed
+SendSIGKILL=no
+
+# When a JVM receives a SIGTERM signal it exits with code 143
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+        # 重新加载 systemd 配置
+        systemctl daemon-reload
+
+        # 启动 OpenSearch 服务
+        log "Starting OpenSearch service..."
+        systemctl start opensearch
+        systemctl enable opensearch
+
+        # 等待服务启动
+        log "Waiting for OpenSearch to start..."
+        for i in {1..60}; do
+            if curl -s "http://localhost:9200/_cluster/health" &>/dev/null; then
+                log "OpenSearch is running"
+                break
+            fi
+            sleep 2
+        done
+    fi
+else
+    log "Skipping OpenSearch installation"
+fi
+
+# Memcached
+if [ "$SKIP_MEMCACHED" != "true" ]; then
+    if ! check_installed "memcached"; then
+        log "Installing Memcached..."
+        apt-get install -y memcached php8.2-memcached || error "Failed to install Memcached"
+        systemctl start memcached
+        systemctl enable memcached
+    else
+        log "Memcached is already installed"
+    fi
+else
+    log "Skipping Memcached installation"
+fi
+
+# Composer
+if [ "$SKIP_COMPOSER" != "true" ]; then
+    if ! command -v composer &> /dev/null; then
+        log "Installing Composer..."
+        log "Installing Composer 2.7..."
+        EXPECTED_CHECKSUM="$(php -r 'copy("https://composer.github.io/installer.sig", "php://stdout");')"
+        php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+        ACTUAL_CHECKSUM="$(php -r "echo hash_file('sha384', 'composer-setup.php');")"
+        if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+            rm composer-setup.php
+            error "Composer installer corrupt"
+        fi
+        php composer-setup.php --version=2.7.1 --install-dir=/usr/local/bin --filename=composer --no-interaction
+        rm composer-setup.php
+    else
+        log "Composer is already installed"
+    fi
+else
+    log "Skipping Composer installation"
+fi
+
+# phpMyAdmin
+if [ "$SKIP_PHPMYADMIN" != "true" ]; then
+    if ! check_installed "phpmyadmin"; then
+        log "Installing phpMyAdmin..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y phpmyadmin || error "Failed to install phpMyAdmin"
+    else
+        log "phpMyAdmin is already installed"
+    fi
+else
+    log "Skipping phpMyAdmin installation"
+fi
+
+# Fail2ban
+if [ "$SKIP_FAIL2BAN" != "true" ]; then
+    if ! check_installed "fail2ban"; then
+        log "Installing Fail2ban..."
+        apt-get install -y fail2ban || error "Failed to install Fail2ban"
+        
+        # 配置 Fail2ban
+        cat > /etc/fail2ban/jail.local <<EOF
+[DEFAULT]
+bantime = 3600
+findtime = 600
+maxretry = 5
+
+[sshd]
+enabled = true
+maxretry = 3
+
+[nginx-http-auth]
+enabled = true
+
+[nginx-botsearch]
+enabled = true
+
+[nginx-badbots]
+enabled = true
+
+[nginx-noscript]
+enabled = true
+
+[nginx-req-limit]
+enabled = true
+EOF
+
+        systemctl start fail2ban
+        systemctl enable fail2ban
+        systemctl restart fail2ban
+    else
+        log "Fail2ban is already installed"
+    fi
+else
+    log "Skipping Fail2ban installation"
 fi
 
 # 检查 MySQL 服务状态的函数
@@ -538,110 +794,6 @@ if [ "$SKIP_VARNISH" != "true" ]; then
     fi
 else
     log "Skipping Varnish installation"
-fi
-
-# OpenSearch
-if [[ ! -d "/usr/local/opensearch" ]]; then
-    log "Installing OpenSearch..."
-    log "Installing OpenSearch 2.12..."
-    wget https://artifacts.opensearch.org/releases/bundle/opensearch/2.12.0/opensearch-2.12.0-linux-x64.tar.gz
-    tar -xzf opensearch-2.12.0-linux-x64.tar.gz
-    mv opensearch-2.12.0 /usr/local/opensearch
-    rm opensearch-2.12.0-linux-x64.tar.gz
-
-    # 创建 OpenSearch 用户和组
-    log "Creating OpenSearch user and group..."
-    useradd -r -s /sbin/nologin opensearch || true
-    chown -R opensearch:opensearch /usr/local/opensearch
-
-    # 创建数据和日志目录
-    mkdir -p /var/lib/opensearch /var/log/opensearch
-    chown -R opensearch:opensearch /var/lib/opensearch /var/log/opensearch
-
-    # 配置 OpenSearch
-    log "Configuring OpenSearch..."
-    cat > /usr/local/opensearch/config/opensearch.yml <<EOF
-cluster.name: magento-cluster
-node.name: node-1
-path.data: /var/lib/opensearch
-path.logs: /var/log/opensearch
-network.host: 127.0.0.1
-http.port: 9200
-discovery.type: single-node
-EOF
-
-    # 创建系统服务
-    log "Creating OpenSearch service..."
-    cat > /etc/systemd/system/opensearch.service <<EOF
-[Unit]
-Description=OpenSearch
-Documentation=https://opensearch.org/docs/
-Wants=network-online.target
-After=network-online.target
-
-[Service]
-Type=simple
-RuntimeDirectory=opensearch
-PrivateTmp=true
-Environment=OPENSEARCH_HOME=/usr/local/opensearch
-Environment=OPENSEARCH_PATH_CONF=/usr/local/opensearch/config
-Environment=JAVA_HOME=/usr/local/opensearch/jdk
-Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
-Environment=ES_JAVA_OPTS="-Xms1g -Xmx1g"
-
-User=opensearch
-Group=opensearch
-
-ExecStart=/usr/local/opensearch/bin/opensearch
-
-# Specifies the maximum file descriptor number
-LimitNOFILE=65535
-LimitNPROC=4096
-LimitAS=infinity
-LimitFSIZE=infinity
-
-# Disable timeout logic
-TimeoutStopSec=0
-
-# SIGTERM signal is used to stop OpenSearch
-KillSignal=SIGTERM
-
-# Send the signal only to the JVM rather than its control group
-KillMode=process
-
-# Java process is never killed
-SendSIGKILL=no
-
-# When a JVM receives a SIGTERM signal it exits with code 143
-SuccessExitStatus=143
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    # 重新加载 systemd 配置
-    systemctl daemon-reload
-
-    # 启动 OpenSearch 服务
-    log "Starting OpenSearch service..."
-    systemctl start opensearch
-    systemctl enable opensearch
-
-    # 等待服务启动
-    log "Waiting for OpenSearch to start..."
-    for i in {1..60}; do
-        if curl -s "http://localhost:9200/_cluster/health" &>/dev/null; then
-            log "OpenSearch is running"
-            break
-        fi
-        sleep 2
-    done
-else
-    log "OpenSearch is already installed"
-    if ! systemctl is-active --quiet opensearch; then
-        log "Starting OpenSearch service..."
-        systemctl start opensearch
-    fi
 fi
 
 # 第7阶段：安装管理工具
