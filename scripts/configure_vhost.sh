@@ -53,6 +53,13 @@ sed -i 's/^user  .*$/user  '"$PHP_USER"' '"$PHP_GROUP"';/' /etc/nginx/nginx.conf
 log "Nginx user configuration:"
 grep "^user" /etc/nginx/nginx.conf
 
+# 禁用默认的 www pool
+log "Disabling default www pool..."
+if [ -f "/etc/php/8.2/fpm/pool.d/www.conf" ]; then
+    mv /etc/php/8.2/fpm/pool.d/www.conf /etc/php/8.2/fpm/pool.d/www.conf.disabled
+    log "Default www pool has been disabled"
+fi
+
 # 配置 PHP-FPM 池
 log "Configuring PHP-FPM pool..."
 PHP_FPM_POOL_CONF="/etc/php/8.2/fpm/pool.d/magento.conf"
@@ -75,8 +82,10 @@ pm.max_spare_servers = 35
 php_value[memory_limit] = 756M
 php_value[max_execution_time] = 18000
 
-php_admin_value[error_log] = /var/log/php-fpm/magento.error.log
+catch_workers_output = yes
 php_admin_flag[log_errors] = on
+php_admin_value[error_log] = /var/log/php-fpm/magento.error.log
+php_admin_value[display_errors] = Off
 EOF
 
 # 创建日志目录
