@@ -86,6 +86,21 @@ openssl x509 -req -in "$CERT_DIR/node.csr" -CA "$CERT_DIR/root-ca.pem" -CAkey "$
 chown -R opensearch:opensearch "$CERT_DIR"
 chmod 600 "$CERT_DIR"/*
 
+# 初始化安全插件
+log "Initializing security plugin..."
+cd /usr/local/opensearch/plugins/opensearch-security/tools
+
+# 运行 securityadmin.sh 来初始化安全配置
+./securityadmin.sh -cd "$SECURITY_CONFIG_DIR" \
+    -icl -nhnv \
+    -cacert "$CERT_DIR/root-ca.pem" \
+    -cert "$CERT_DIR/node.pem" \
+    -key "$CERT_DIR/node-key.pem" \
+    -h localhost
+
+# 返回原目录
+cd -
+
 # 更新 OpenSearch 配置
 log "Updating OpenSearch configuration..."
 cat > "$CONFIG_DIR/opensearch.yml" <<EOF
@@ -110,6 +125,7 @@ plugins.security.audit.type: internal_opensearch
 plugins.security.enable_snapshot_restore_privilege: true
 plugins.security.check_snapshot_restore_write_privileges: true
 plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
+plugins.security.disabled: false
 
 # JVM 配置
 bootstrap.memory_lock: false
