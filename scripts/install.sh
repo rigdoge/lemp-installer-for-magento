@@ -83,6 +83,22 @@ log "Stage 2: Installing MySQL..."
 # 预配置数据库 root 密码
 DB_ROOT_PASSWORD="magento"
 
+# 添加 Debian Bookworm backports 仓库
+echo "deb http://deb.debian.org/debian bookworm-backports main" > /etc/apt/sources.list.d/bookworm-backports.list
+apt-get update
+
+# 从 backports 安装更新的依赖
+apt-get install -y -t bookworm-backports \
+    libc6 \
+    libstdc++6 \
+    libzstd1
+
+# 安装 libssl3
+wget http://ftp.de.debian.org/debian/pool/main/o/openssl/libssl3_3.0.11-1~deb12u2_arm64.deb
+dpkg -i libssl3_3.0.11-1~deb12u2_arm64.deb || true
+apt-get install -f -y
+rm libssl3_3.0.11-1~deb12u2_arm64.deb
+
 if [[ "$ARCH" == "x86_64" ]]; then
     log "Installing MySQL for x86_64..."
     # 下载 MySQL 服务器和客户端包
