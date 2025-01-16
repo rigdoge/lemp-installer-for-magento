@@ -78,6 +78,11 @@ rm -f /usr/share/keyrings/mysql*
 # 更新包列表
 apt-get update
 
+# 第2阶段：安装数据库
+log "Stage 2: Installing MySQL..."
+# 预配置 MySQL root 密码
+MYSQL_ROOT_PASSWORD="magento"
+
 # 下载 MySQL 服务器和客户端包
 if [[ "$ARCH" == "x86_64" ]]; then
     log "Downloading MySQL packages for x86_64..."
@@ -114,17 +119,26 @@ apt-get install -f -y
 # 清理下载的文件
 rm -f mysql-*_8.0.36-1debian12_*.deb
 
-# 第2阶段：安装数据库
-log "Stage 2: Installing MySQL..."
-# 预配置 MySQL root 密码
-MYSQL_ROOT_PASSWORD="magento"
-
 # 启动 MySQL
-systemctl start mysql
+systemctl start mysql || error "Failed to start MySQL"
 systemctl enable mysql
 
+# 等待 MySQL 完全启动
+log "Waiting for MySQL to start..."
+for i in {1..30}; do
+    if mysqladmin ping &>/dev/null; then
+        break
+    fi
+    sleep 1
+done
+
 # 设置 root 密码
-mysqladmin -u root password "${MYSQL_ROOT_PASSWORD}"
+log "Setting MySQL root password..."
+if mysqladmin -u root password "${MYSQL_ROOT_PASSWORD}"; then
+    log "MySQL root password set successfully"
+else
+    error "Failed to set MySQL root password"
+fi
 
 # 配置 MySQL
 log "Configuring MySQL..."
@@ -143,17 +157,22 @@ transaction-isolation = READ-COMMITTED
 EOF
 
 # 重启 MySQL 使配置生效
-systemctl restart mysql
+systemctl restart mysql || error "Failed to restart MySQL"
 
 # 设置 MySQL 安全配置
 log "Securing MySQL installation..."
-mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
+if mysql -u root -p"${MYSQL_ROOT_PASSWORD}" <<EOF
 DELETE FROM mysql.user WHERE User='';
 DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
 DROP DATABASE IF EXISTS test;
 DELETE FROM mysql.db WHERE Db='test' OR Db='test\\_%';
 FLUSH PRIVILEGES;
 EOF
+then
+    log "MySQL security configuration completed successfully"
+else
+    error "Failed to configure MySQL security settings"
+fi
 
 # 第3阶段：安装PHP和扩展
 log "Stage 3: Installing PHP and extensions..."
