@@ -581,6 +581,18 @@ fi
 # Webmin
 if ! check_installed "webmin"; then
     log "Installing Webmin..."
+    
+    # 添加 Webmin 仓库密钥
+    log "Adding Webmin repository..."
+    curl -fsSL https://download.webmin.com/jcameron-key.asc | gpg --dearmor > /usr/share/keyrings/webmin-archive-keyring.gpg
+    
+    # 添加 Webmin 仓库
+    echo "deb [signed-by=/usr/share/keyrings/webmin-archive-keyring.gpg] https://download.webmin.com/download/repository sarge contrib" | tee /etc/apt/sources.list.d/webmin.list
+    
+    # 更新包列表
+    apt-get update || error "Failed to update package lists after adding Webmin repository"
+    
+    # 安装 Webmin
     apt-get install -y webmin || error "Failed to install Webmin"
 else
     log "Webmin is already installed"
