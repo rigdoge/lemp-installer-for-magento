@@ -115,7 +115,14 @@ if [[ "$ARCH" == "x86_64" ]]; then
 else
     # 安装 MariaDB
     log "Installing MariaDB 10.6 for ARM64..."
-    apt-get install -y mariadb-server-10.6 mariadb-client-10.6 || error "Failed to install MariaDB 10.6"
+    
+    # 添加 MariaDB 仓库
+    log "Adding MariaDB repository..."
+    curl -LsS https://r.mariadb.com/downloads/mariadb_repo_setup | bash -s -- --mariadb-server-version="mariadb-10.6"
+    
+    # 安装 MariaDB
+    apt-get update || error "Failed to update package lists after adding MariaDB repository"
+    apt-get install -y mariadb-server mariadb-client || error "Failed to install MariaDB 10.6"
     
     # 启动 MariaDB
     systemctl start mariadb || error "Failed to start MariaDB"
