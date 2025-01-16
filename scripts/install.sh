@@ -344,47 +344,14 @@ apt-get install -y webmin || error "Failed to install Webmin"
 
 # 第8阶段：安装安全组件
 log "Stage 8: Installing security components..."
-# ModSecurity
-apt-get install -y nginx-module-modsecurity modsecurity-crs || error "Failed to install ModSecurity for Nginx"
-
-# Configure ModSecurity
-log "Configuring ModSecurity..."
-mkdir -p /etc/nginx/modsec
-wget -P /etc/nginx/modsec/ https://raw.githubusercontent.com/SpiderLabs/ModSecurity/v3/master/modsecurity.conf-recommended
-mv /etc/nginx/modsec/modsecurity.conf-recommended /etc/nginx/modsec/modsecurity.conf
-sed -i 's/SecRuleEngine DetectionOnly/SecRuleEngine On/' /etc/nginx/modsec/modsecurity.conf
-
-# Download and configure OWASP CRS
-wget https://github.com/coreruleset/coreruleset/archive/v3.3.5.tar.gz
-tar -xzf v3.3.5.tar.gz
-mv coreruleset-3.3.5/rules /etc/nginx/modsec/
-rm -rf coreruleset-3.3.5 v3.3.5.tar.gz
-
-# Create main ModSecurity configuration file
-cat > /etc/nginx/modsec/main.conf <<EOF
-Include /etc/nginx/modsec/modsecurity.conf
-Include /etc/nginx/modsec/rules/*.conf
-
-# Magento specific rules
-SecRule REQUEST_URI "@beginsWith /admin" "id:1000,phase:1,pass,nolog,ctl:ruleEngine=Off"
-SecRule REQUEST_URI "@beginsWith /static/" "id:1001,phase:1,pass,nolog,ctl:ruleEngine=Off"
-SecRule REQUEST_URI "@beginsWith /media/" "id:1002,phase:1,pass,nolog,ctl:ruleEngine=Off"
-EOF
-
-# Add ModSecurity module to Nginx configuration
-cat > /etc/nginx/conf.d/modsecurity.conf <<EOF
-load_module modules/ngx_http_modsecurity_module.so;
-
-modsecurity on;
-modsecurity_rules_file /etc/nginx/modsec/main.conf;
-EOF
 
 # Fail2ban
+log "Installing and configuring Fail2ban..."
 apt-get install -y fail2ban || error "Failed to install Fail2ban"
 systemctl start fail2ban
 systemctl enable fail2ban
 
-# Configure Fail2ban
+# 配置 Fail2ban
 cat > /etc/fail2ban/jail.local <<EOF
 [DEFAULT]
 bantime = 3600
@@ -411,6 +378,9 @@ enabled = true
 enabled = true
 EOF
 
+# 重启 Fail2ban 使配置生效
+systemctl restart fail2ban
+
 # Certbot
 apt-get install -y certbot python3-certbot-nginx || error "Failed to install Certbot"
 
@@ -418,7 +388,11 @@ apt-get install -y certbot python3-certbot-nginx || error "Failed to install Cer
 log "Installation completed successfully!"
 log "Installed versions:"
 nginx -v
-mysql --version
+if [[ "$ARCH" == "x86_64" ]]; then
+    mysql --version
+else
+    mariadb --version
+fi
 php --version
 redis-cli --version
 rabbitmqctl version
@@ -429,4 +403,3 @@ dpkg -l | grep phpmyadmin | awk '{print "phpMyAdmin " $3}'
 memcached -h | head -n1
 dpkg -l | grep webmin | awk '{print "Webmin " $3}'
 dpkg -l | grep fail2ban | awk '{print "Fail2ban " $3}'
-dpkg -l | grep modsecurity | awk '{print "ModSecurity " $3}'
