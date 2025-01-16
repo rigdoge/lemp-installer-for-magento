@@ -199,7 +199,15 @@ systemctl enable php8.2-fpm
 
 # 第4阶段：安装Web服务器
 log "Stage 4: Installing Nginx..."
-apt-get install -y nginx || error "Failed to install Nginx"
+
+# 添加 Nginx 官方仓库
+log "Adding Nginx official repository..."
+curl https://nginx.org/keys/nginx_signing.key | gpg --dearmor | tee /usr/share/keyrings/nginx-archive-keyring.gpg >/dev/null
+echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian $(lsb_release -cs) nginx" | tee /etc/apt/sources.list.d/nginx.list
+apt-get update || error "Failed to update package lists after adding Nginx repository"
+
+# 安装 Nginx
+apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
 systemctl start nginx
 systemctl enable nginx
 
