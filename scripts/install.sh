@@ -242,13 +242,16 @@ systemctl enable memcached
 
 # RabbitMQ
 log "Adding RabbitMQ and Erlang repositories..."
+
+# 清理旧的仓库配置
+rm -f /etc/apt/sources.list.d/rabbitmq*.list
+rm -f /usr/share/keyrings/rabbitmq*.gpg
+
 # 添加 Erlang 仓库
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-erlang.gpg
-echo "deb [signed-by=/usr/share/keyrings/rabbitmq-erlang.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/debian $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/rabbitmq-erlang.list
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/setup.deb.sh" | sudo bash
 
 # 添加 RabbitMQ 仓库
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.gpg
-echo "deb [signed-by=/usr/share/keyrings/rabbitmq.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/debian $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/rabbitmq.list
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/setup.deb.sh" | sudo bash
 
 # 更新包列表
 apt-get update || error "Failed to update package lists after adding RabbitMQ repositories"
