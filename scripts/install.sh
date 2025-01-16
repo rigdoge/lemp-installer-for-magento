@@ -92,25 +92,20 @@ done
 # 添加所有必要的软件源
 log "Adding required repositories..."
 
-# MySQL 8.0 Repository
-log "Adding MySQL repository..."
+# 清理之前的数据库安装
+log "Cleaning up previous database installations..."
+# 停止可能运行的数据库服务
+systemctl stop mysql mysqld mariadb || true
 
-# 清理之前的 MySQL 残留
-log "Cleaning up previous MySQL installations..."
-# 停止可能运行的 MySQL 服务
-systemctl stop mysql || true
-systemctl stop mysqld || true
-systemctl stop mariadb || true
-
-# 删除所有 MySQL 相关包
-apt-get remove --purge -y mysql* mariadb*
+# 清理旧的包和配置
+DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y mysql* mariadb* percona* || true
 apt-get autoremove -y
 apt-get autoclean
 
-# 删除 MySQL 配置和数据文件
+# 清理配置和数据文件
 rm -rf /etc/mysql /var/lib/mysql /var/log/mysql
-rm -f /etc/apt/sources.list.d/mysql.list
-rm -f /usr/share/keyrings/mysql*
+rm -f /etc/apt/sources.list.d/mysql.list /etc/apt/sources.list.d/percona*.list
+rm -f /usr/share/keyrings/mysql* /usr/share/keyrings/percona*
 
 # MySQL 安装和配置部分
 if [[ "$ARCH" == "x86_64" || "$ARCH" == "aarch64" ]]; then
