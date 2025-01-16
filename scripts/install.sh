@@ -54,20 +54,45 @@ log "Updating system packages..."
 apt-get update || error "Failed to update system packages"
 apt-get upgrade -y || error "Failed to upgrade system packages"
 
-# 安装指定版本的 Nginx
+# 添加必要的软件源
+log "Adding required repositories..."
+
+# MySQL 8.0 Repository
+wget https://dev.mysql.com/get/mysql-apt-config_0.8.29-1_all.deb
+DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.29-1_all.deb
+rm mysql-apt-config_0.8.29-1_all.deb
+
+# Redis 7.2 Repository
+curl -fsSL https://packages.redis.io/gpg | gpg --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb $(lsb_release -cs) main" > /etc/apt/sources.list.d/redis.list
+
+# RabbitMQ 3.13 Repository
+curl -1sLf "https://keys.openpgp.org/vks/v1/by-fingerprint/0A9AF2115F4687BD29803A206B73A36E6026DFCA" | gpg --dearmor > /usr/share/keyrings/com.rabbitmq.team.gpg
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.9F4587F226208342.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/rabbitmq.E495BB49CC4BBE5B.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/debian bullseye main" > /etc/apt/sources.list.d/rabbitmq-erlang.list
+echo "deb [signed-by=/usr/share/keyrings/rabbitmq.9F4587F226208342.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/debian bullseye main" > /etc/apt/sources.list.d/rabbitmq-server.list
+
+# Varnish 7.5 Repository
+curl -s https://packagecloud.io/install/repositories/varnishcache/varnish75/script.deb.sh | bash
+
+# 更新包列表
+apt-get update
+
+# 安装指定版本的软件包
+log "Installing specified versions of required packages..."
+
+# Nginx 1.24.0
 log "Installing Nginx 1.24.0..."
 apt-get install -y nginx=1.24.0-1 || error "Failed to install Nginx 1.24.0"
-systemctl start nginx
-systemctl enable nginx
 
-# 安装MySQL/MariaDB
-log "Installing MariaDB..."
-apt-get install -y mariadb-server || error "Failed to install MariaDB"
-systemctl start mariadb
-systemctl enable mariadb
+# MySQL 8.0.36
+log "Installing MySQL 8.0.36..."
+apt-get install -y mysql-server=8.0.36-1 || error "Failed to install MySQL 8.0.36"
 
-# 安装PHP和必要的扩展
-log "Installing PHP and required extensions..."
+# PHP 8.2
+log "Installing PHP 8.2 and extensions..."
 apt-get install -y php8.2-fpm \
     php8.2-cli \
     php8.2-common \
@@ -82,48 +107,59 @@ apt-get install -y php8.2-fpm \
     php8.2-soap \
     php8.2-xsl || error "Failed to install PHP and extensions"
 
+# Redis 7.2
+log "Installing Redis 7.2..."
+apt-get install -y redis-server=7:7.2.* || error "Failed to install Redis 7.2"
+
+# RabbitMQ 3.13
+log "Installing RabbitMQ 3.13..."
+apt-get install -y rabbitmq-server=3.13.* || error "Failed to install RabbitMQ 3.13"
+
+# Varnish 7.5
+log "Installing Varnish 7.5..."
+apt-get install -y varnish=7.5.* || error "Failed to install Varnish 7.5"
+
+# OpenSearch 2.12
+log "Installing OpenSearch 2.12..."
+wget https://artifacts.opensearch.org/releases/bundle/opensearch/2.12.0/opensearch-2.12.0-linux-x64.tar.gz
+tar -xzf opensearch-2.12.0-linux-x64.tar.gz
+mv opensearch-2.12.0 /usr/local/opensearch
+rm opensearch-2.12.0-linux-x64.tar.gz
+
+# Composer 2.7
+log "Installing Composer 2.7..."
+EXPECTED_CHECKSUM="$(php -r 'copy("https://composer.github.io/installer.sig", "php://stdout");')"
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+ACTUAL_CHECKSUM="$(php -r "echo hash_file('sha384', 'composer-setup.php');")"
+if [ "$EXPECTED_CHECKSUM" != "$ACTUAL_CHECKSUM" ]; then
+    rm composer-setup.php
+    error "Composer installer corrupt"
+fi
+php composer-setup.php --version=2.7.1 --install-dir=/usr/local/bin --filename=composer
+rm composer-setup.php
+
+# 启动服务
+log "Starting services..."
+systemctl start nginx
+systemctl enable nginx
+systemctl start mysql
+systemctl enable mysql
 systemctl start php8.2-fpm
 systemctl enable php8.2-fpm
+systemctl start redis-server
+systemctl enable redis-server
+systemctl start rabbitmq-server
+systemctl enable rabbitmq-server
+systemctl start varnish
+systemctl enable varnish
 
-# 配置PHP
-log "Configuring PHP..."
-PHP_INI="/etc/php/8.2/fpm/php.ini"
-PHP_FPM_CONF="/etc/php/8.2/fpm/pool.d/www.conf"
-
-# 根据架构调整PHP配置
-if [[ "$ARCH" == "aarch64" ]]; then
-    # ARM架构通常内存较小，调整相应参数
-    sed -i 's/memory_limit = .*/memory_limit = 1G/' $PHP_INI
-    sed -i 's/pm.max_children = .*/pm.max_children = 10/' $PHP_FPM_CONF
-    warn "ARM64 architecture detected: PHP memory limit set to 1G"
-else
-    # x86_64架构使用默认配置
-    sed -i 's/memory_limit = .*/memory_limit = 2G/' $PHP_INI
-fi
-
-sed -i 's/max_execution_time = .*/max_execution_time = 1800/' $PHP_INI
-sed -i 's/zlib.output_compression = .*/zlib.output_compression = On/' $PHP_INI
-
-# 优化PHP-FPM配置
-if [[ "$ARCH" == "aarch64" ]]; then
-    # ARM架构的优化配置
-    sed -i 's/pm = .*/pm = ondemand/' $PHP_FPM_CONF
-    sed -i 's/pm.max_children = .*/pm.max_children = 10/' $PHP_FPM_CONF
-    sed -i 's/pm.start_servers = .*/pm.start_servers = 2/' $PHP_FPM_CONF
-    sed -i 's/pm.min_spare_servers = .*/pm.min_spare_servers = 1/' $PHP_FPM_CONF
-    sed -i 's/pm.max_spare_servers = .*/pm.max_spare_servers = 3/' $PHP_FPM_CONF
-fi
-
-# 重启服务
-log "Restarting services..."
-systemctl restart nginx
-systemctl restart mariadb
-systemctl restart php8.2-fpm
-
-log "LEMP stack installation completed successfully!"
-log "Architecture-specific optimizations have been applied for: $ARCH"
-log "Next steps:"
-log "1. Configure MySQL root password"
-log "2. Create database for Magento"
-log "3. Configure Nginx virtual host"
-log "4. Install Magento"
+log "Installation completed successfully!"
+log "Installed versions:"
+nginx -v
+mysql --version
+php --version
+redis-cli --version
+rabbitmqctl version
+varnishd -V
+composer --version
+echo "OpenSearch 2.12.0"

@@ -1,0 +1,21 @@
+# Core Components (Fixed versions)
+nginx==1.24.0
+mysql-server==8.0.36
+php==8.2.0
+redis-server==7.2.0
+rabbitmq-server==3.13.0
+varnish==7.5.0
+opensearch==2.12.0
+composer==2.7.1
+
+# Security Components (Latest versions allowed)
+fail2ban==latest
+certbot==latest
+
+# Additional Components (Latest versions allowed)
+ufw==latest
+curl==latest
+wget==latest
+git==latest
+unzip==latest
+net-tools==latest 
