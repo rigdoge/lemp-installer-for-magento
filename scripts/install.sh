@@ -241,12 +241,28 @@ systemctl start memcached
 systemctl enable memcached
 
 # RabbitMQ
-log "Adding RabbitMQ repository..."
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/setup.deb.sh" | bash
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/setup.deb.sh" | bash
-apt-get update || error "Failed to update package lists after adding RabbitMQ repository"
+log "Adding RabbitMQ and Erlang repositories..."
+# 添加 Erlang 仓库
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/gpg.E495BB49CC4BBE5B.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq-erlang.gpg
+echo "deb [signed-by=/usr/share/keyrings/rabbitmq-erlang.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/deb/debian $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/rabbitmq-erlang.list
+
+# 添加 RabbitMQ 仓库
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/gpg.9F4587F226208342.key" | gpg --dearmor > /usr/share/keyrings/rabbitmq.gpg
+echo "deb [signed-by=/usr/share/keyrings/rabbitmq.gpg] https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/deb/debian $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/rabbitmq.list
+
+# 更新包列表
+apt-get update || error "Failed to update package lists after adding RabbitMQ repositories"
+
+# 安装 Erlang
+log "Installing Erlang..."
+apt-get install -y erlang-base \
+    erlang-asn1 erlang-crypto erlang-eldap erlang-ftp erlang-inets \
+    erlang-mnesia erlang-os-mon erlang-parsetools erlang-public-key \
+    erlang-runtime-tools erlang-snmp erlang-ssl \
+    erlang-syntax-tools erlang-tftp erlang-tools erlang-xmerl || error "Failed to install Erlang"
 
 # 安装 RabbitMQ
+log "Installing RabbitMQ..."
 apt-get install -y rabbitmq-server || error "Failed to install RabbitMQ"
 systemctl start rabbitmq-server
 systemctl enable rabbitmq-server
