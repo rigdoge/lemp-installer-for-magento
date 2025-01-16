@@ -966,17 +966,21 @@ Wants=network-online.target
 After=network-online.target
 
 [Service]
-Type=notify
+Type=simple
 RuntimeDirectory=opensearch
 PrivateTmp=true
 Environment=OPENSEARCH_HOME=/usr/local/opensearch
 Environment=OPENSEARCH_PATH_CONF=/etc/opensearch
 Environment=JAVA_HOME=/usr/local/opensearch/jdk
 Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
+Environment=OPENSEARCH_INITIAL_STATE_TIMEOUT=300s
 
 User=opensearch
 Group=opensearch
 
+WorkingDirectory=/usr/local/opensearch
+
+ExecStartPre=/bin/bash -c "ulimit -n 65535"
 ExecStart=/usr/local/opensearch/bin/opensearch
 
 # 系统限制设置
@@ -990,7 +994,7 @@ LimitMEMLOCK=infinity
 TimeoutStartSec=300
 TimeoutStopSec=300
 
-Restart=always
+Restart=on-failure
 RestartSec=10s
 
 [Install]
@@ -1000,21 +1004,26 @@ EOF
         # 重新加载 systemd 配置
         systemctl daemon-reload
 
-        # 先启用服务，再启动
-        log "Enabling and starting OpenSearch service..."
-        systemctl enable opensearch
-        sleep 2  # 给一点时间让 systemd 处理服务启用
+        # 确保目录权限正确
+        log "Verifying directory permissions..."
+        chown -R opensearch:opensearch /usr/local/opensearch
+        chown -R opensearch:opensearch /etc/opensearch
+        chown -R opensearch:opensearch /var/lib/opensearch
+        chown -R opensearch:opensearch /var/log/opensearch
+        chmod 750 /usr/local/opensearch
+        chmod 750 /etc/opensearch
+        chmod 750 /var/lib/opensearch
+        chmod 750 /var/log/opensearch
+
+        # 应用系统参数
+        log "Applying system parameters..."
+        sysctl -w vm.max_map_count=262144
+
+        # 启动服务
+        log "Starting OpenSearch service..."
         systemctl start opensearch
 
-        # 验证服务状态
-        log "Verifying OpenSearch service status..."
-        if ! systemctl is-active --quiet opensearch; then
-            systemctl status opensearch || true
-            log "Checking OpenSearch logs..."
-            journalctl -u opensearch --no-pager | tail -n 50
-        fi
-
-        # 等待 OpenSearch 完全启动
+        # 等待服务启动
         log "Waiting for OpenSearch to start..."
         max_attempts=30
         attempt=1
@@ -1024,6 +1033,11 @@ EOF
                 break
             fi
             log "Attempt $attempt/$max_attempts: Waiting for OpenSearch to start..."
+            if [ $attempt -eq $max_attempts ]; then
+                log "Checking OpenSearch logs..."
+                journalctl -u opensearch --no-pager | tail -n 50
+                systemctl status opensearch || true
+            fi
             sleep 2
             ((attempt++))
         done
