@@ -224,7 +224,7 @@ echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://pack
 apt-get update || error "Failed to update package lists after adding Redis repository"
 
 # 安装 Redis
-apt-get install -y redis-server=7:7.2.* || error "Failed to install Redis 7.2"
+apt-get install -y redis-server=7.2.* || error "Failed to install Redis 7.2"
 systemctl start redis-server
 systemctl enable redis-server
 
