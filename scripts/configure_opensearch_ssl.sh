@@ -158,8 +158,20 @@ network.host: 0.0.0.0
 http.port: 9200
 discovery.type: single-node
 
-# 先禁用安全插件
-plugins.security.disabled: true
+# 安全配置
+plugins.security.ssl.transport.pemcert_filepath: certificates/node.pem
+plugins.security.ssl.transport.pemkey_filepath: certificates/node-key.pem
+plugins.security.ssl.transport.pemtrustedcas_filepath: certificates/root-ca.pem
+plugins.security.ssl.http.enabled: false
+plugins.security.ssl.transport.enforce_hostname_verification: false
+plugins.security.allow_default_init_securityindex: true
+plugins.security.authcz.admin_dn:
+  - "CN=node,OU=Example Com Unit,O=Example Com,L=Shanghai,ST=Shanghai,C=CN"
+plugins.security.audit.type: internal_opensearch
+plugins.security.enable_snapshot_restore_privilege: true
+plugins.security.check_snapshot_restore_write_privileges: true
+plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
+plugins.security.disabled: false
 
 # JVM 配置
 bootstrap.memory_lock: false
@@ -173,11 +185,11 @@ chmod 600 "$CONFIG_DIR/opensearch.yml"
 log "Restarting OpenSearch..."
 systemctl restart opensearch
 
-# 等待服务启动并检查状态
+# 等待服务启动
 log "Waiting for OpenSearch to start..."
 for i in {1..60}; do
-    if curl -s "http://localhost:9200/_cluster/health" | grep -q '"status":\s*"green"'; then
-        log "OpenSearch started successfully without security"
+    if curl -s -u "admin:admin" "http://localhost:9200/_cluster/health" | grep -q '"status":\s*"green"'; then
+        log "OpenSearch started successfully with security enabled"
         break
     fi
     if [ $i -eq 5 ]; then
@@ -196,166 +208,10 @@ echo ""
 
 # 验证节点是否正常运行
 log "Verifying node status..."
-NODE_COUNT=$(curl -s "http://localhost:9200/_cat/nodes?h=ip" | wc -l)
+NODE_COUNT=$(curl -s -u "admin:admin" "http://localhost:9200/_cat/nodes?h=ip" | wc -l)
 if [ "$NODE_COUNT" -eq 0 ]; then
     error "No alive nodes found in the cluster. Please check OpenSearch configuration."
 fi
-
-# 生成配置文件
-log "Generating configuration files..."
-cat > "$SECURITY_CONFIG_DIR/config.yml" <<EOF
-_meta:
-  type: "config"
-  config_version: 2
-
-config:
-  dynamic:
-    http:
-      anonymous_auth_enabled: false
-      xff:
-        enabled: false
-    authc:
-      basic_internal_auth_domain:
-        description: "Authenticate via HTTP Basic against internal users database"
-        http_enabled: true
-        transport_enabled: true
-        order: 0
-        http_authenticator:
-          type: basic
-          challenge: false
-        authentication_backend:
-          type: intern
-EOF
-
-cat > "$SECURITY_CONFIG_DIR/action_groups.yml" <<EOF
-_meta:
-  type: "actiongroups"
-  config_version: 2
-
-admin_all:
-  reserved: true
-  hidden: false
-  allowed_actions:
-    - "*"
-EOF
-
-# 生成内部用户配置
-log "Generating internal users configuration..."
-cat > "$SECURITY_CONFIG_DIR/internal_users.yml" <<EOF
-_meta:
-  type: "internalusers"
-  config_version: 2
-
-# 默认管理员用户
-admin:
-  hash: "\$2a\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"  # admin
-  reserved: true
-  backend_roles:
-  - "admin"
-  description: "Admin user"
-
-# Magento 用户
-$USERNAME:
-  hash: "\$2a\$12\$VcCDgh2NDk07JGN0rjGbM.Ad41qVR/YFJcgHp0UGns5JDymv..TOG"  # 临时使用相同密码
-  reserved: false
-  backend_roles:
-  - "admin"
-  description: "Magento admin user"
-EOF
-
-# 生成角色配置
-log "Generating roles configuration..."
-cat > "$SECURITY_CONFIG_DIR/roles.yml" <<EOF
-_meta:
-  type: "roles"
-  config_version: 2
-
-# 管理员角色
-admin_role:
-  reserved: true
-  hidden: false
-  cluster_permissions:
-  - "unlimited"
-  index_permissions:
-  - index_patterns:
-    - "*"
-    allowed_actions:
-    - "unlimited"
-  tenant_permissions:
-  - tenant_patterns:
-    - "*"
-    allowed_actions:
-    - "unlimited"
-
-# Magento 角色
-magento_role:
-  reserved: false
-  hidden: false
-  cluster_permissions:
-  - "cluster:monitor/main"
-  - "cluster:monitor/health"
-  index_permissions:
-  - index_patterns:
-    - "magento*"
-    allowed_actions:
-    - "read"
-    - "write"
-    - "delete"
-    - "create_index"
-EOF
-
-# 生成角色映射配置
-log "Generating roles mapping configuration..."
-cat > "$SECURITY_CONFIG_DIR/roles_mapping.yml" <<EOF
-_meta:
-  type: "rolesmapping"
-  config_version: 2
-
-# 管理员角色映射
-admin_role:
-  reserved: true
-  hidden: false
-  backend_roles:
-  - "admin"
-  hosts: []
-  users:
-  - "admin"
-  - "$USERNAME"
-
-# Magento 角色映射
-magento_role:
-  reserved: false
-  hidden: false
-  backend_roles:
-  - "admin"
-  hosts: []
-  users:
-  - "$USERNAME"
-EOF
-
-# 设置权限
-chown -R opensearch:opensearch "$SECURITY_CONFIG_DIR"
-chmod 600 "$SECURITY_CONFIG_DIR"/*
-
-# 启用安全插件
-log "Enabling security plugin..."
-cat >> "$CONFIG_DIR/opensearch.yml" <<EOF
-
-# 安全配置
-plugins.security.ssl.transport.pemcert_filepath: certificates/node.pem
-plugins.security.ssl.transport.pemkey_filepath: certificates/node-key.pem
-plugins.security.ssl.transport.pemtrustedcas_filepath: certificates/root-ca.pem
-plugins.security.ssl.http.enabled: false
-plugins.security.ssl.transport.enforce_hostname_verification: false
-plugins.security.allow_default_init_securityindex: true
-plugins.security.authcz.admin_dn:
-  - "CN=node,OU=Example Com Unit,O=Example Com,L=Shanghai,ST=Shanghai,C=CN"
-plugins.security.audit.type: internal_opensearch
-plugins.security.enable_snapshot_restore_privilege: true
-plugins.security.check_snapshot_restore_write_privileges: true
-plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
-plugins.security.disabled: false
-EOF
 
 # 创建新用户
 log "Creating user..."
