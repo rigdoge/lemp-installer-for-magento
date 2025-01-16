@@ -158,7 +158,12 @@ network.host: 0.0.0.0
 http.port: 9200
 discovery.type: single-node
 
+# 基本配置
+bootstrap.memory_lock: false
+plugins.query.datasources.encryption.masterkey: "your-master-key-here"
+
 # 安全配置
+plugins.security.disabled: false
 plugins.security.ssl.transport.pemcert_filepath: certificates/node.pem
 plugins.security.ssl.transport.pemkey_filepath: certificates/node-key.pem
 plugins.security.ssl.transport.pemtrustedcas_filepath: certificates/root-ca.pem
@@ -171,15 +176,17 @@ plugins.security.audit.type: internal_opensearch
 plugins.security.enable_snapshot_restore_privilege: true
 plugins.security.check_snapshot_restore_write_privileges: true
 plugins.security.restapi.roles_enabled: ["all_access", "security_rest_api_access"]
-plugins.security.disabled: false
-
-# JVM 配置
-bootstrap.memory_lock: false
 EOF
 
 # 设置权限
 chown -R opensearch:opensearch "$CONFIG_DIR"
 chmod 600 "$CONFIG_DIR/opensearch.yml"
+
+# 生成默认安全配置
+log "Generating default security configuration..."
+cp -r /usr/local/opensearch/plugins/opensearch-security/securityconfig/* "$SECURITY_CONFIG_DIR/"
+chown -R opensearch:opensearch "$SECURITY_CONFIG_DIR"
+chmod 600 "$SECURITY_CONFIG_DIR"/*
 
 # 重启 OpenSearch 并等待初始化完成
 log "Restarting OpenSearch..."
@@ -197,6 +204,8 @@ for i in {1..60}; do
         tail -n 50 /var/log/opensearch/magento-cluster.log || true
         log "Checking OpenSearch status..."
         systemctl status opensearch || true
+        log "Checking security plugin status..."
+        curl -s -u "admin:admin" "http://localhost:9200/_plugins/_security/health" || true
     fi
     if [ $i -eq 60 ]; then
         error "OpenSearch failed to start. Please check the logs."
