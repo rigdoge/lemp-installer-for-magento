@@ -395,7 +395,7 @@ if ! command -v composer &> /dev/null; then
     rm composer-setup.php
 else
     log "Composer is already installed"
-    composer --version
+    COMPOSER_ALLOW_SUPERUSER=1 composer --version | sed 's/^/Composer: /'
 fi
 
 # phpMyAdmin
@@ -474,7 +474,7 @@ php --version | head -n1 | sed 's/^/PHP: /'
 redis-cli --version | sed 's/^/Redis: /'
 rabbitmqctl version | head -n1 | sed 's/^/RabbitMQ: /'
 varnishd -V 2>&1 | head -n1 | sed 's/^/Varnish: /'
-composer --version | sed 's/^/Composer: /'
+COMPOSER_ALLOW_SUPERUSER=1 composer --version | sed 's/^/Composer: /'
 echo "OpenSearch: 2.12.0"
 dpkg -l | grep "^ii.*phpmyadmin" | head -n1 | awk '{print "phpMyAdmin: " $3}'
 memcached -h | head -n1 | sed 's/^/Memcached: /'
