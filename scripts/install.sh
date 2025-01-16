@@ -845,7 +845,11 @@ EOF
         cat > /etc/sysctl.d/opensearch.conf <<EOF
 vm.max_map_count = 262144
 EOF
+        # 立即应用系统参数
         sysctl -p /etc/sysctl.d/opensearch.conf
+        # 确保系统重启时也应用这些参数
+        echo "sysctl -p /etc/sysctl.d/opensearch.conf" >> /etc/rc.local
+        chmod +x /etc/rc.local
 
         # 配置 OpenSearch
         log "Configuring OpenSearch..."
@@ -859,9 +863,12 @@ http.port: 9200
 discovery.type: single-node
 bootstrap.memory_lock: true
 
+# 禁用安全插件
+plugins.security.disabled: true
+
 # 日志配置
-logger.level: DEBUG
-logger.action: DEBUG
+logger.level: INFO
+logger.action: INFO
 EOF
 
         # 配置 JVM 选项
@@ -913,10 +920,10 @@ EOF
 Description=OpenSearch
 Documentation=https://opensearch.org/docs/
 Wants=network-online.target
-After=network-online.target
+After=network-online.target sysctl.service
 
 [Service]
-Type=simple
+Type=notify
 RuntimeDirectory=opensearch
 PrivateTmp=true
 Environment=OPENSEARCH_HOME=/usr/local/opensearch
@@ -927,6 +934,8 @@ Environment=ES_JAVA_HOME=/usr/local/opensearch/jdk
 User=opensearch
 Group=opensearch
 
+ExecStartPre=/bin/bash -c "sysctl -q -w vm.max_map_count=262144"
+ExecStartPre=/bin/bash -c "ulimit -n 65535"
 ExecStart=/usr/local/opensearch/bin/opensearch
 
 # Specifies the maximum file descriptor number
@@ -938,7 +947,8 @@ LimitFSIZE=infinity
 LimitMEMLOCK=infinity
 
 # Disable timeout logic
-TimeoutStopSec=0
+TimeoutStartSec=180
+TimeoutStopSec=180
 
 # SIGTERM signal is used to stop OpenSearch
 KillSignal=SIGTERM
@@ -952,6 +962,9 @@ SendSIGKILL=no
 # When a JVM receives a SIGTERM signal it exits with code 143
 SuccessExitStatus=143
 
+Restart=on-failure
+RestartSec=10s
+
 [Install]
 WantedBy=multi-user.target
 EOF
@@ -959,16 +972,58 @@ EOF
         # 重新加载 systemd 配置
         systemctl daemon-reload
 
+        # 启动 OpenSearch 服务前确保系统参数已经生效
+        log "Applying system parameters before starting OpenSearch..."
+        sysctl -q -w vm.max_map_count=262144
+        ulimit -n 65535
+
         # 启动 OpenSearch 服务
         log "Starting OpenSearch service..."
         systemctl start opensearch
         systemctl enable opensearch
+
+        # 等待 OpenSearch 完全启动
+        log "Waiting for OpenSearch to start..."
+        max_attempts=30
+        attempt=1
+        while [ $attempt -le $max_attempts ]; do
+            if curl -s "http://localhost:9200/_cluster/health" &>/dev/null; then
+                log "OpenSearch is running"
+                break
+            fi
+            log "Attempt $attempt/$max_attempts: Waiting for OpenSearch to start..."
+            sleep 2
+            ((attempt++))
+        done
     else
         log "OpenSearch service is already running"
     fi
 else
     log "Skipping OpenSearch installation"
 fi
+
+# 确保所有服务开机自动启动
+log "Enabling all services to start on boot..."
+systemctl enable nginx || warn "Failed to enable Nginx"
+systemctl enable mysql || warn "Failed to enable MySQL"
+systemctl enable php8.2-fpm || warn "Failed to enable PHP-FPM"
+systemctl enable redis-server || warn "Failed to enable Redis"
+systemctl enable rabbitmq-server || warn "Failed to enable RabbitMQ"
+systemctl enable varnish || warn "Failed to enable Varnish"
+systemctl enable opensearch || warn "Failed to enable OpenSearch"
+systemctl enable memcached || warn "Failed to enable Memcached"
+systemctl enable fail2ban || warn "Failed to enable Fail2ban"
+
+# 验证服务状态
+log "Verifying service status..."
+services=("nginx" "mysql" "php8.2-fpm" "redis-server" "rabbitmq-server" "varnish" "opensearch" "memcached" "fail2ban")
+for service in "${services[@]}"; do
+    if systemctl is-enabled "$service" &>/dev/null; then
+        log "$service is enabled for boot"
+    else
+        warn "$service is NOT enabled for boot"
+    fi
+done
 
 # 输出安装版本信息
 log "Installation completed successfully!"
