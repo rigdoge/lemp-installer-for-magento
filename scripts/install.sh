@@ -248,28 +248,60 @@ if systemctl is-active --quiet mysql && mysqladmin ping &>/dev/null; then
         log "MySQL version: $MYSQL_VERSION"
         SKIP_MYSQL=true
     fi
+else
+    # 检查是否已安装 Percona MySQL
+    if ! check_installed "percona-server-server"; then
+        log "Installing Percona MySQL..."
+        # 添加 Percona 仓库
+        if [ ! -f /etc/apt/sources.list.d/percona-release.list ]; then
+            curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb || error "Failed to download Percona release package"
+            dpkg -i percona-release_latest.generic_all.deb || error "Failed to install Percona release package"
+            rm percona-release_latest.generic_all.deb
+        fi
+
+        # 设置 Percona 仓库
+        log "Setting up Percona repository..."
+        percona-release setup ps80 || error "Failed to setup Percona repository"
+        
+        # 更新包列表
+        apt-get update || error "Failed to update package lists after adding Percona repository"
+        
+        # 安装 Percona MySQL
+        log "Installing Percona MySQL 8.0..."
+        DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            percona-server-client \
+            percona-server-server || error "Failed to install Percona MySQL 8.0"
+        
+        # 启动 MySQL 服务
+        log "Starting MySQL service..."
+        systemctl start mysql || error "Failed to start MySQL service"
+        systemctl enable mysql || warn "Failed to enable MySQL service"
+    else
+        log "Percona MySQL is already installed but not running"
+        log "Starting MySQL service..."
+        systemctl start mysql || error "Failed to start MySQL service"
+    fi
 fi
 
 # 等待数据库完全启动
-log "Waiting for database to start..."
-max_attempts=30
-attempt=1
-while [ $attempt -le $max_attempts ]; do
-    if mysqladmin ping &>/dev/null; then
-        log "MySQL is responding to ping"
-        break
-    fi
-    log "Attempt $attempt/$max_attempts: Waiting for MySQL to start..."
-    if [ $attempt -eq $max_attempts ]; then
-        check_mysql_status
-        error "MySQL did not start after $max_attempts attempts"
-    fi
-    sleep 2
-    ((attempt++))
-done
-
-# 如果是新安装的 MySQL，设置 root 密码
 if [ "$SKIP_MYSQL" != "true" ]; then
+    log "Waiting for database to start..."
+    max_attempts=30
+    attempt=1
+    while [ $attempt -le $max_attempts ]; do
+        if mysqladmin ping &>/dev/null; then
+            log "MySQL is responding to ping"
+            break
+        fi
+        log "Attempt $attempt/$max_attempts: Waiting for MySQL to start..."
+        if [ $attempt -eq $max_attempts ]; then
+            check_mysql_status
+            error "MySQL did not start after $max_attempts attempts"
+        fi
+        sleep 2
+        ((attempt++))
+    done
+
     # 设置 root 密码
     log "Setting database root password..."
     if mysqladmin -u root password "${DB_ROOT_PASSWORD}"; then
