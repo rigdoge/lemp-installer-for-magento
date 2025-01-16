@@ -99,8 +99,10 @@ rm -f /usr/share/keyrings/mysql*
 if [[ "$ARCH" == "x86_64" ]]; then
     # 添加 Percona 仓库
     log "Adding Percona repository..."
-    wget -O - https://repo.percona.com/apt/percona-release.key | gpg --dearmor > /usr/share/keyrings/percona-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/percona-keyring.gpg] https://repo.percona.com/ps-80/apt $(lsb_release -sc) main" > /etc/apt/sources.list.d/percona-mysql.list
+    curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+    dpkg -i percona-release_latest.generic_all.deb
+    rm percona-release_latest.generic_all.deb
+    percona-release setup ps80
     
     # 更新包列表
     apt-get update || error "Failed to update package lists after adding Percona repository"
@@ -117,8 +119,10 @@ else
     log "Installing Percona MySQL 8.0 for ARM64..."
     
     # 添加 Percona 仓库
-    wget -O - https://repo.percona.com/apt/percona-release.key | gpg --dearmor > /usr/share/keyrings/percona-keyring.gpg
-    echo "deb [signed-by=/usr/share/keyrings/percona-keyring.gpg] https://repo.percona.com/ps-80/apt $(lsb_release -sc) main" > /etc/apt/sources.list.d/percona-mysql.list
+    curl -O https://repo.percona.com/apt/percona-release_latest.generic_all.deb
+    dpkg -i percona-release_latest.generic_all.deb
+    rm percona-release_latest.generic_all.deb
+    percona-release setup ps80
     
     # 更新包列表
     apt-get update || error "Failed to update package lists after adding Percona repository"
