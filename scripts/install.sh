@@ -199,7 +199,7 @@ systemctl enable php8.2-fpm
 
 # 第4阶段：安装Web服务器
 log "Stage 4: Installing Nginx..."
-apt-get install -y nginx=1.24.* || error "Failed to install Nginx 1.24"
+apt-get install -y nginx || error "Failed to install Nginx"
 systemctl start nginx
 systemctl enable nginx
 
