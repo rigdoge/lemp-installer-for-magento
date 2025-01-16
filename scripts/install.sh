@@ -243,15 +243,38 @@ systemctl enable memcached
 # RabbitMQ
 log "Adding RabbitMQ and Erlang repositories..."
 
-# 清理旧的仓库配置
-rm -f /etc/apt/sources.list.d/rabbitmq*.list
-rm -f /usr/share/keyrings/rabbitmq*.gpg
+# 彻底清理 RabbitMQ 和 Erlang 的残留
+log "Cleaning up previous RabbitMQ installations..."
+# 停止服务
+systemctl stop rabbitmq-server || true
+systemctl stop erlang || true
+
+# 删除包
+apt-get remove --purge -y rabbitmq-server erlang* || true
+apt-get autoremove -y
+apt-get autoclean
+
+# 删除配置文件和数据
+rm -rf /var/lib/rabbitmq/
+rm -rf /var/log/rabbitmq/
+rm -rf /etc/rabbitmq/
+rm -rf /usr/lib/rabbitmq/
+rm -f /etc/apt/sources.list.d/rabbitmq*
+rm -f /etc/apt/sources.list.d/erlang*
+rm -f /usr/share/keyrings/rabbitmq*
+rm -f /usr/share/keyrings/net.launchpad.ppa.rabbitmq*
+rm -f /etc/apt/trusted.gpg.d/rabbitmq*
+
+# 清理 apt 缓存
+apt-get clean
+rm -rf /var/lib/apt/lists/*
+apt-get update
 
 # 添加 Erlang 仓库
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/setup.deb.sh" | sudo bash
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-erlang/setup.deb.sh" | bash
 
 # 添加 RabbitMQ 仓库
-curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/setup.deb.sh" | sudo bash
+curl -1sLf "https://dl.cloudsmith.io/public/rabbitmq/rabbitmq-server/setup.deb.sh" | bash
 
 # 更新包列表
 apt-get update || error "Failed to update package lists after adding RabbitMQ repositories"
