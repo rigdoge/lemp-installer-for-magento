@@ -57,6 +57,11 @@ apt-get upgrade -y || error "Failed to upgrade system packages"
 # 添加必要的软件源
 log "Adding required repositories..."
 
+# Nginx Repository
+log "Adding Nginx official repository..."
+curl -fsSL https://nginx.org/keys/nginx_signing.key | gpg --dearmor -o /usr/share/keyrings/nginx-archive-keyring.gpg
+echo "deb [signed-by=/usr/share/keyrings/nginx-archive-keyring.gpg] http://nginx.org/packages/debian $(lsb_release -cs) nginx" > /etc/apt/sources.list.d/nginx.list
+
 # MySQL 8.0 Repository
 wget https://dev.mysql.com/get/mysql-apt-config_0.8.29-1_all.deb
 DEBIAN_FRONTEND=noninteractive dpkg -i mysql-apt-config_0.8.29-1_all.deb
@@ -89,7 +94,7 @@ log "Installing specified versions of required packages..."
 
 # Nginx 1.24.0
 log "Installing Nginx 1.24.0..."
-apt-get install -y nginx=1.24.0-1 || error "Failed to install Nginx 1.24.0"
+apt-get install -y nginx=1.24.0* || error "Failed to install Nginx 1.24.0"
 
 # MySQL 8.0.36
 log "Installing MySQL 8.0.36..."
