@@ -88,11 +88,13 @@ if [[ "$ARCH" == "x86_64" ]]; then
     # 下载 MySQL 服务器和客户端包
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-server-8.0_8.0.40-2_amd64.deb
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-8.0_8.0.40-2_amd64.deb
+    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-core-8.0_8.0.40-2_amd64.deb
     apt-get install -y mysql-common
 elif [[ "$ARCH" == "aarch64" ]]; then
     log "Installing MySQL for ARM64..."
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-server-8.0_8.0.40-2_arm64.deb
     wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-8.0_8.0.40-2_arm64.deb
+    wget http://ftp.de.debian.org/debian/pool/main/m/mysql-8.0/mysql-client-core-8.0_8.0.40-2_arm64.deb
     apt-get install -y mysql-common
 else
     error "Unsupported architecture: $ARCH"
@@ -103,13 +105,15 @@ apt-get install -y libaio1 libmecab2 libsasl2-2 libevent-core-2.1-7 libcgi-fast-
     libconfig-inifiles-perl libdbd-mysql-perl libdbi-perl libencode-locale-perl libevent-pthreads-2.1-7 \
     libfcgi-perl libhtml-parser-perl libhtml-tagset-perl libhttp-date-perl libhttp-message-perl \
     libio-html-perl liblwp-mediatypes-perl libtimedate-perl liburi-perl libevent-2.1-7 \
-    mysql-client-core-8.0 mysql-common perl-modules-5.36
+    mysql-common perl-modules-5.36
 
 # 安装 MySQL 包
 if [[ "$ARCH" == "x86_64" ]]; then
+    dpkg -i mysql-client-core-8.0_8.0.40-2_amd64.deb
     dpkg -i mysql-client-8.0_8.0.40-2_amd64.deb
     dpkg -i mysql-server-8.0_8.0.40-2_amd64.deb || true
 elif [[ "$ARCH" == "aarch64" ]]; then
+    dpkg -i mysql-client-core-8.0_8.0.40-2_arm64.deb
     dpkg -i mysql-client-8.0_8.0.40-2_arm64.deb
     dpkg -i mysql-server-8.0_8.0.40-2_arm64.deb || true
 fi
