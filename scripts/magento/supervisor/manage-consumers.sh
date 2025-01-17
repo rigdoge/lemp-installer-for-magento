@@ -26,7 +26,7 @@ fi
 mkdir -p /var/log/magento/consumers
 
 # 设置日志目录权限
-chown -R www-data:www-data /var/log/magento
+chown -R doge:doge /var/log/magento
 chmod -R 755 /var/log/magento
 
 # 复制配置文件
