@@ -10,9 +10,47 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/smtp.conf"
 
+# 初始化日志
+init_log() {
+    # 创建日志目录
+    local log_dir=$(dirname "$LOG_FILE")
+    if [ ! -d "$log_dir" ]; then
+        mkdir -p "$log_dir"
+        chmod 755 "$log_dir"
+    fi
+    
+    # 创建日志文件（如果不存在）
+    if [ ! -f "$LOG_FILE" ]; then
+        touch "$LOG_FILE"
+        chmod 644 "$LOG_FILE"
+    fi
+}
+
+# 检查配置文件权限
+check_config_permissions() {
+    local config_dir=$(dirname "$CONFIG_FILE")
+    
+    # 检查配置目录权限
+    if [ ! -d "$config_dir" ]; then
+        mkdir -p "$config_dir"
+        chmod 750 "$config_dir"
+    fi
+    
+    # 检查配置文件权限
+    if [ -f "$CONFIG_FILE" ]; then
+        current_perm=$(stat -f "%Lp" "$CONFIG_FILE")
+        if [ "$current_perm" != "600" ]; then
+            chmod 600 "$CONFIG_FILE"
+            log "WARN" "配置文件权限已更正为 600"
+        fi
+    fi
+}
+
 # 加载配置文件
 if [ -f "$CONFIG_FILE" ]; then
+    check_config_permissions
     source "$CONFIG_FILE"
+    init_log
 else
     echo -e "${RED}错误：配置文件不存在 ($CONFIG_FILE)${NC}"
     exit 1
@@ -44,15 +82,13 @@ log() {
 # 加密函数
 encrypt_password() {
     local password="$1"
-    # TODO: 实现密码加密
-    echo "$password"
+    echo "$password" | openssl enc -aes-256-cbc -a -salt -pass pass:"smtp_secret_key"
 }
 
 # 解密函数
 decrypt_password() {
     local encrypted_password="$1"
-    # TODO: 实现密码解密
-    echo "$encrypted_password"
+    echo "$encrypted_password" | openssl enc -aes-256-cbc -a -d -salt -pass pass:"smtp_secret_key"
 }
 
 # 配置提供商
@@ -207,13 +243,18 @@ test_connection() {
 test_send() {
     local to="$1"
     local subject="SMTP 测试邮件"
-    local body="这是一封测试邮件，用于验证 SMTP 配置。"
+    local body="这是一封测试邮件，用于验证 SMTP 配置。\n\n发送时间: $(date '+%Y-%m-%d %H:%M:%S')\n配置信息:\n- 提供商: $SMTP_PROVIDER\n- 服务器: $SMTP_HOST:$SMTP_PORT\n- 加密方式: $SMTP_ENCRYPTION"
     
     log "INFO" "发送测试邮件到 $to..."
     
-    # TODO: 实现邮件发送逻辑
-    
-    log "INFO" "测试邮件已发送"
+    # 调用发送脚本
+    if "$SCRIPT_DIR/smtp_send.sh" "$to" "$subject" "$body"; then
+        log "INFO" "测试邮件发送成功"
+        return 0
+    else
+        log "ERROR" "测试邮件发送失败"
+        return 1
+    fi
 }
 
 # 显示帮助信息
