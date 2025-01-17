@@ -61,7 +61,7 @@ send_message() {
     if [ -z "$BOT_TOKEN" ] || [ -z "$CHAT_ID" ]; then
         log_error "Bot not configured. Please run configure_bot first"
         return 1
-    }
+    fi
     
     local response
     response=$(curl -s -X POST \
