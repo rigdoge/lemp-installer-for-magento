@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# 加载配置
+source $(dirname "$0")/opensearch.monitor
+
+# 检查 OpenSearch 是否在运行
+if ! command -v opensearch &> /dev/null; then
+    echo -e "${RED}Error: OpenSearch is not installed${NC}"
+    exit 1
+fi
+
+# 删除监控用户
+echo "Removing monitoring user..."
+curl -s -k -X DELETE \
+    -u "${OPENSEARCH_USER}:${OPENSEARCH_PASS}" \
+    "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_opendistro/_security/api/internalusers/monitor"
+
+# 删除监控角色
+echo "Removing monitoring role..."
+curl -s -k -X DELETE \
+    -u "${OPENSEARCH_USER}:${OPENSEARCH_PASS}" \
+    "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_opendistro/_security/api/roles/monitor_role"
+
+# 删除快照仓库（可选，取决于是否需要保留历史数据）
+# echo "Removing snapshot repository..."
+# curl -s -k -X DELETE \
+#     -u "${OPENSEARCH_USER}:${OPENSEARCH_PASS}" \
+#     "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_snapshot/${SNAPSHOT_REPO}"
+
+# 删除监控日志
+if [ -f "$LOG_FILE" ]; then
+    echo "Removing monitoring log..."
+    rm -f "$LOG_FILE"
+fi
+
+echo -e "${GREEN}OpenSearch monitor stopped successfully${NC}" 

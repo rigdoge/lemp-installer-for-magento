@@ -1,0 +1,108 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# 加载配置
+source $(dirname "$0")/opensearch.monitor
+
+# 检查 OpenSearch 是否已安装
+if ! command -v opensearch &> /dev/null; then
+    echo -e "${RED}Error: OpenSearch is not installed${NC}"
+    exit 1
+fi
+
+# 确保 OpenSearch 服务正在运行
+if ! systemctl is-active --quiet opensearch; then
+    echo "Starting OpenSearch service..."
+    systemctl start opensearch
+fi
+
+# 等待服务完全启动
+echo "Waiting for OpenSearch to start..."
+for i in {1..60}; do
+    if curl -s -k -u "${OPENSEARCH_USER}:${OPENSEARCH_PASS}" \
+        "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_cluster/health" &> /dev/null; then
+        break
+    fi
+    echo -n "."
+    sleep 1
+done
+
+# 检查是否启动成功
+if ! curl -s -k -u "${OPENSEARCH_USER}:${OPENSEARCH_PASS}" \
+    "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_cluster/health" &> /dev/null; then
+    echo -e "${RED}Error: Failed to start OpenSearch service${NC}"
+    exit 1
+fi
+
+# 创建监控用户
+echo "Creating monitoring user..."
+curl -s -k -X PUT \
+    -u "${OPENSEARCH_USER}:${OPENSEARCH_PASS}" \
+    "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_opendistro/_security/api/internalusers/monitor" \
+    -H 'Content-Type: application/json' \
+    -d '{
+        "password": "monitor_password",
+        "backend_roles": ["monitor_role"],
+        "attributes": {
+            "description": "Monitor user for system monitoring"
+        }
+    }'
+
+# 创建监控角色
+echo "Creating monitoring role..."
+curl -s -k -X PUT \
+    -u "${OPENSEARCH_USER}:${OPENSEARCH_PASS}" \
+    "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_opendistro/_security/api/roles/monitor_role" \
+    -H 'Content-Type: application/json' \
+    -d '{
+        "cluster_permissions": [
+            "cluster:monitor/*",
+            "cluster_monitor"
+        ],
+        "index_permissions": [{
+            "index_patterns": ["*"],
+            "allowed_actions": [
+                "indices:monitor/*",
+                "indices:admin/stats",
+                "indices:data/read/*"
+            ]
+        }]
+    }'
+
+# 创建快照仓库
+echo "Creating snapshot repository..."
+curl -s -k -X PUT \
+    -u "${OPENSEARCH_USER}:${OPENSEARCH_PASS}" \
+    "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_snapshot/${SNAPSHOT_REPO}" \
+    -H 'Content-Type: application/json' \
+    -d '{
+        "type": "fs",
+        "settings": {
+            "location": "/var/lib/opensearch/snapshots"
+        }
+    }'
+
+# 配置监控日志
+echo "Configuring monitoring log..."
+touch "$LOG_FILE"
+chown opensearch:opensearch "$LOG_FILE"
+chmod 640 "$LOG_FILE"
+
+# 验证配置
+echo "Verifying configuration..."
+if curl -s -k -u "monitor:monitor_password" \
+    "https://${OPENSEARCH_HOST}:${OPENSEARCH_PORT}/_cluster/health" | grep -q "status"; then
+    echo -e "${GREEN}OpenSearch monitor initialized successfully${NC}"
+    echo "Monitor user created: monitor"
+    echo "Monitor password: monitor_password"
+    echo "Log file: $LOG_FILE"
+    exit 0
+else
+    echo -e "${RED}Error: Failed to verify OpenSearch monitoring configuration${NC}"
+    exit 1
+fi 

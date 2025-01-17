@@ -1,0 +1,47 @@
+# OpenSearch Monitor Configuration
+
+# 监控设置
+CHECK_INTERVAL=60          # 检查间隔（秒）
+OPENSEARCH_HOST="localhost"
+OPENSEARCH_PORT=9200
+OPENSEARCH_USER="admin"
+OPENSEARCH_PASS="admin"
+OPENSEARCH_USE_SSL=true
+
+# 性能阈值
+MAX_CPU_USAGE=90          # 最大 CPU 使用率（%）
+MAX_MEMORY_USAGE=90       # 最大内存使用率（%）
+MAX_DISK_USAGE=90         # 最大磁盘使用率（%）
+MAX_HEAP_USAGE=80         # 最大堆内存使用率（%）
+
+# 集群设置
+MIN_ACTIVE_SHARDS=90      # 最小活动分片百分比
+MAX_INITIALIZING_SHARDS=5 # 最大初始化分片数
+MAX_RELOCATING_SHARDS=5   # 最大重定位分片数
+MAX_UNASSIGNED_SHARDS=5   # 最大未分配分片数
+
+# 索引设置
+MAX_INDEX_SIZE_GB=50      # 单个索引最大大小（GB）
+MAX_SEGMENTS_PER_INDEX=50 # 每个索引最大段数
+MIN_DOC_COUNT=100         # 最小文档数警告阈值
+
+# 查询性能
+SLOW_QUERY_TIME=5         # 慢查询阈值（秒）
+MAX_SEARCH_LATENCY=1000   # 最大搜索延迟（毫秒）
+MAX_INDEXING_LATENCY=500  # 最大索引延迟（毫秒）
+
+# 日志设置
+LOG_FILE="/var/log/opensearch-monitor.log"
+LOG_LEVEL="info"          # debug, info, warn, error
+MAX_LOG_SIZE=100M         # 日志文件最大大小
+MAX_LOG_FILES=10          # 保留的日志文件数量
+
+# 告警设置
+ALERT_EMAIL="admin@example.com"
+ALERT_THRESHOLD=3         # 连续失败次数阈值
+ALERT_INTERVAL=300        # 告警间隔（秒）
+
+# 备份设置
+SNAPSHOT_REPO="magento2-snapshots"
+MAX_SNAPSHOT_AGE=7        # 快照最大保留天数
+MIN_SUCCESS_RATIO=0.9     # 最小成功率阈值 
