@@ -5,6 +5,13 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 NC='\033[0m'
 
+# 检查是否以 root 权限运行
+if [[ $EUID -ne 0 ]]; then
+   echo -e "${RED}此脚本必须以 root 权限运行${NC}"
+   echo "请使用: sudo $0"
+   exit 1
+fi
+
 # 检查 RabbitMQ 是否已安装
 if ! command -v rabbitmqctl &> /dev/null; then
     echo -e "${RED}Error: RabbitMQ is not installed${NC}"
@@ -29,6 +36,7 @@ done
 # 检查是否启动成功
 if ! rabbitmqctl status >/dev/null 2>&1; then
     echo -e "${RED}Error: Failed to start RabbitMQ service${NC}"
+    systemctl status rabbitmq-server
     exit 1
 fi
 
@@ -44,6 +52,17 @@ fi
 if ! rabbitmq-plugins list -e | grep -q "rabbitmq_management"; then
     echo "Enabling management plugin..."
     rabbitmq-plugins enable rabbitmq_management >/dev/null 2>&1
+    # 重启服务以应用插件更改
+    systemctl restart rabbitmq-server
+    
+    # 等待服务重新启动
+    for i in {1..30}; do
+        if rabbitmqctl status >/dev/null 2>&1; then
+            break
+        fi
+        echo -n "."
+        sleep 1
+    done
 fi
 
 echo -e "${GREEN}RabbitMQ monitor initialized successfully${NC}"
