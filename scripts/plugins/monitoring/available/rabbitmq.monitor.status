@@ -8,14 +8,23 @@ NC='\033[0m'
 
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SMTP_SCRIPT="$SCRIPT_DIR/../../../smtp/smtp_send.sh"
-STATUS_FILE="/tmp/rabbitmq_monitor_status"
+echo "Script directory: $SCRIPT_DIR"
 
 # 加载配置
-source "$SCRIPT_DIR/rabbitmq.monitor"
+if [ -f "$SCRIPT_DIR/rabbitmq.monitor" ]; then
+    echo "Loading RabbitMQ monitor config..."
+    source "$SCRIPT_DIR/rabbitmq.monitor"
+else
+    echo "Error: RabbitMQ monitor config not found"
+fi
 
 # 加载通知库
-source "$SCRIPT_DIR/../lib/notify.sh"
+if [ -f "$SCRIPT_DIR/../lib/notify.sh" ]; then
+    echo "Loading notification library..."
+    source "$SCRIPT_DIR/../lib/notify.sh"
+else
+    echo "Error: Notification library not found"
+fi
 
 # 发送告警邮件
 send_alert_email() {
@@ -41,6 +50,8 @@ is_number() {
 
 # 检查 RabbitMQ 状态
 check_rabbitmq_status() {
+    echo "Checking RabbitMQ status..."
+    
     local status_message=""
     local has_error=false
     local previous_status=0
@@ -52,13 +63,12 @@ check_rabbitmq_status() {
     
     # 检查服务状态
     if ! systemctl is-active --quiet rabbitmq-server; then
-        status_message="RabbitMQ 服务未运行"
-        has_error=true
-        send_alert_email "错误" "$status_message"
-        echo -e "${RED}错误：$status_message${NC}"
-        echo "1" > "$STATUS_FILE"
+        echo "RabbitMQ service is not running"
+        send_notification "error" "RabbitMQ" "服务停止" "RabbitMQ 服务未运行"
         exit 1
     else
+        echo "RabbitMQ service is running"
+        send_notification "recovery" "RabbitMQ" "服务正常" "RabbitMQ 服务运行正常"
         # 如果服务恢复且上次状态为错误，发送恢复通知
         if [ "$previous_status" = "1" ]; then
             send_alert_email "恢复" "RabbitMQ 服务已恢复运行"
