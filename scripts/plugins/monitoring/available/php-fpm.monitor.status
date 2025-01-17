@@ -1,0 +1,157 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# 加载配置
+source $(dirname "$0")/php-fpm.monitor
+
+# 检查 PHP-FPM 是否运行
+check_service_status() {
+    if ! systemctl is-active --quiet php${PHP_VERSION}-fpm; then
+        echo -e "${RED}Error: PHP-FPM service is not running${NC}"
+        return 1
+    fi
+    return 0
+}
+
+# 检查进程状态
+check_process_status() {
+    local status_output=$(curl -s "http://localhost${PHP_FPM_STATUS_PATH}?json")
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}Error: Cannot get PHP-FPM status${NC}"
+        return 1
+    fi
+
+    # 解析 JSON 输出
+    local active_processes=$(echo "$status_output" | grep -o '"active processes":[0-9]*' | cut -d':' -f2)
+    local idle_processes=$(echo "$status_output" | grep -o '"idle processes":[0-9]*' | cut -d':' -f2)
+    local total_processes=$(echo "$status_output" | grep -o '"total processes":[0-9]*' | cut -d':' -f2)
+
+    echo "Process Status:"
+    echo "- Active processes: $active_processes"
+    echo "- Idle processes: $idle_processes"
+    echo "- Total processes: $total_processes"
+
+    # 检查进程使用率
+    local process_usage=$((active_processes * 100 / total_processes))
+    if [ $process_usage -gt $MAX_PROCESS_USAGE ]; then
+        echo -e "${RED}Warning: High process usage ($process_usage%)${NC}"
+        return 2
+    fi
+
+    return 0
+}
+
+# 检查内存使用
+check_memory_usage() {
+    local memory_info=$(ps -o rss,cmd ax | grep "php-fpm: pool ${PHP_FPM_POOL}" | grep -v grep)
+    local total_memory=0
+    local process_count=0
+
+    while read -r line; do
+        local memory=$(echo "$line" | awk '{print $1}')
+        total_memory=$((total_memory + memory))
+        process_count=$((process_count + 1))
+    done <<< "$memory_info"
+
+    local average_memory=$((total_memory / process_count))
+    echo "Memory Usage:"
+    echo "- Total Memory: $((total_memory / 1024)) MB"
+    echo "- Average per process: $((average_memory / 1024)) MB"
+    echo "- Process count: $process_count"
+
+    # 检查内存使用率
+    local memory_usage=$((total_memory * 100 / ($(free -k | awk '/Mem:/ {print $2}'))))
+    if [ $memory_usage -gt $MAX_MEMORY_USAGE ]; then
+        echo -e "${RED}Warning: High memory usage ($memory_usage%)${NC}"
+        return 2
+    fi
+
+    return 0
+}
+
+# 检查慢请求
+check_slow_requests() {
+    if [ ! -f "$SLOW_LOG" ]; then
+        echo -e "${YELLOW}Warning: Slow log file not found${NC}"
+        return 0
+    fi
+
+    local slow_count=$(grep -c "script" "$SLOW_LOG")
+    echo "Slow Requests:"
+    echo "- Total slow requests: $slow_count"
+
+    if [ $slow_count -gt 0 ]; then
+        echo "- Latest slow requests:"
+        tail -n 5 "$SLOW_LOG" | grep "script" | while read -r line; do
+            echo "  $line"
+        done
+        return 2
+    fi
+
+    return 0
+}
+
+# 检查请求队列
+check_request_queue() {
+    local queue_len=$(curl -s "http://localhost${PHP_FPM_STATUS_PATH}?json" | grep -o '"listen queue len":[0-9]*' | cut -d':' -f2)
+    
+    echo "Request Queue:"
+    echo "- Queue length: $queue_len"
+
+    if [ "$queue_len" -gt 0 ]; then
+        echo -e "${YELLOW}Warning: Requests are queuing ($queue_len)${NC}"
+        return 2
+    fi
+
+    return 0
+}
+
+# 主检查逻辑
+main() {
+    local exit_code=0
+
+    echo "PHP-FPM Monitor Status Check"
+    echo "==========================="
+    echo "Time: $(date)"
+    echo
+
+    # 检查服务状态
+    check_service_status
+    [ $? -eq 1 ] && exit_code=1
+
+    # 如果服务正在运行，执行其他检查
+    if [ $exit_code -eq 0 ]; then
+        check_process_status
+        [ $? -eq 2 ] && exit_code=2
+        [ $? -eq 1 ] && exit_code=1
+
+        check_memory_usage
+        [ $? -eq 2 ] && exit_code=2
+        [ $? -eq 1 ] && exit_code=1
+
+        check_slow_requests
+        [ $? -eq 2 ] && exit_code=2
+        [ $? -eq 1 ] && exit_code=1
+
+        check_request_queue
+        [ $? -eq 2 ] && exit_code=2
+        [ $? -eq 1 ] && exit_code=1
+    fi
+
+    echo
+    case $exit_code in
+        0) echo -e "${GREEN}Status: OK${NC}" ;;
+        1) echo -e "${RED}Status: Error${NC}" ;;
+        2) echo -e "${YELLOW}Status: Warning${NC}" ;;
+    esac
+
+    return $exit_code
+}
+
+# 运行检查
+main 

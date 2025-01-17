@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# 检查 PHP-FPM 是否已安装
+if ! command -v php-fpm8.2 &> /dev/null; then
+    echo -e "${RED}Error: PHP-FPM 8.2 is not installed${NC}"
+    exit 1
+fi
+
+# 确保 PHP-FPM 服务正在运行
+if ! systemctl is-active --quiet php8.2-fpm; then
+    echo "Starting PHP-FPM service..."
+    systemctl start php8.2-fpm
+fi
+
+# 等待服务完全启动
+for i in {1..30}; do
+    if systemctl is-active --quiet php8.2-fpm; then
+        break
+    fi
+    echo -n "."
+    sleep 1
+done
+
+# 检查是否启动成功
+if ! systemctl is-active --quiet php8.2-fpm; then
+    echo -e "${RED}Error: Failed to start PHP-FPM service${NC}"
+    exit 1
+fi
+
+# 配置状态页面
+echo "Configuring PHP-FPM status page..."
+cat > /etc/php/8.2/fpm/pool.d/status.conf << 'EOL'
+[www]
+pm.status_path = /status
+ping.path = /ping
+EOL
+
+# 配置 Nginx 状态页面访问
+echo "Configuring Nginx for PHP-FPM status..."
+cat > /etc/nginx/conf.d/php-fpm-status.conf << 'EOL'
+location ~ ^/(status|ping)$ {
+    access_log off;
+    allow 127.0.0.1;
+    deny all;
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+    fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+}
+EOL
+
+# 配置慢日志
+echo "Configuring slow log..."
+cat >> /etc/php/8.2/fpm/pool.d/www.conf << 'EOL'
+request_slowlog_timeout = 10s
+slowlog = /var/log/php8.2-fpm.slow.log
+EOL
+
+# 重启服务
+echo "Restarting services..."
+systemctl restart php8.2-fpm
+systemctl restart nginx
+
+# 验证配置
+echo "Verifying configuration..."
+if curl -s "http://localhost/status" | grep -q "pool"; then
+    echo -e "${GREEN}PHP-FPM monitor initialized successfully${NC}"
+    echo "Status page: http://localhost/status"
+    echo "Ping page: http://localhost/ping"
+    echo "Slow log: /var/log/php8.2-fpm.slow.log"
+    exit 0
+else
+    echo -e "${RED}Error: Failed to verify PHP-FPM status page${NC}"
+    exit 1
+fi 

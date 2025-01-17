@@ -1,0 +1,30 @@
+# PHP-FPM Monitor Configuration
+
+# 监控设置
+CHECK_INTERVAL=60          # 检查间隔（秒）
+MAX_CHILDREN=50           # 最大子进程数
+MIN_SPARE_SERVERS=5       # 最小空闲进程数
+MAX_SPARE_SERVERS=35      # 最大空闲进程数
+MAX_REQUESTS=500          # 每个子进程最大请求数
+
+# 性能阈值
+MAX_PROCESS_USAGE=90      # 最大进程使用率（%）
+MAX_MEMORY_USAGE=90       # 最大内存使用率（%）
+MAX_REQUEST_TIME=30       # 最大请求时间（秒）
+SLOW_REQUEST_TIME=10      # 慢请求阈值（秒）
+
+# PHP-FPM 配置
+PHP_FPM_POOL="www"
+PHP_FPM_STATUS_PATH="/status"
+PHP_FPM_PING_PATH="/ping"
+PHP_FPM_PORT=9000
+PHP_VERSION="8.2"
+
+# 日志设置
+LOG_FILE="/var/log/php-fpm-monitor.log"
+SLOW_LOG="/var/log/php${PHP_VERSION}-fpm.slow.log"
+ERROR_LOG="/var/log/php${PHP_VERSION}-fpm.log"
+
+# 告警设置
+ALERT_EMAIL="admin@example.com"
+ALERT_THRESHOLD=3         # 连续失败次数阈值 

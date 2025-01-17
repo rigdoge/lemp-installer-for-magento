@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# 检查 PHP-FPM 是否在运行
+if ! command -v php-fpm8.2 &> /dev/null; then
+    echo -e "${RED}Error: PHP-FPM 8.2 is not installed${NC}"
+    exit 1
+fi
+
+# 移除状态页面配置
+echo "Removing PHP-FPM status configuration..."
+rm -f /etc/php/8.2/fpm/pool.d/status.conf
+
+# 移除 Nginx 状态页面配置
+echo "Removing Nginx status configuration..."
+rm -f /etc/nginx/conf.d/php-fpm-status.conf
+
+# 恢复默认配置
+echo "Restoring default configuration..."
+sed -i '/request_slowlog_timeout/d' /etc/php/8.2/fpm/pool.d/www.conf
+sed -i '/slowlog/d' /etc/php/8.2/fpm/pool.d/www.conf
+
+# 重启服务
+echo "Restarting services..."
+systemctl restart php8.2-fpm
+systemctl restart nginx
+
+echo -e "${GREEN}PHP-FPM monitor stopped successfully${NC}" 
