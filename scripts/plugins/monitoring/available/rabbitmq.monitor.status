@@ -30,6 +30,12 @@ send_alert_email() {
     fi
 }
 
+# 检查是否为数字
+is_number() {
+    local num="$1"
+    [[ "$num" =~ ^[0-9]+([.][0-9]+)?$ ]] && return 0 || return 1
+}
+
 # 检查 RabbitMQ 状态
 check_rabbitmq_status() {
     local status_message=""
@@ -71,32 +77,42 @@ check_rabbitmq_status() {
     # 分析队列状态
     while read -r queue messages consumers; do
         if [ "$queue" != "Listing" ] && [ -n "$queue" ]; then
-            if [ $messages -gt $MAX_QUEUE_SIZE ]; then
-                status_message="队列 $queue 消息数量过多: $messages (超过 $MAX_QUEUE_SIZE)"
-                has_error=true
-                send_alert_email "警告" "$status_message"
-                echo -e "${YELLOW}警告：$status_message${NC}"
+            # 验证消息数是否为数字
+            if is_number "$messages"; then
+                if [ "${messages%.*}" -gt "$MAX_QUEUE_SIZE" ]; then
+                    status_message="队列 $queue 消息数量过多: $messages (超过 $MAX_QUEUE_SIZE)"
+                    has_error=true
+                    send_alert_email "警告" "$status_message"
+                    echo -e "${YELLOW}警告：$status_message${NC}"
+                fi
             fi
             
-            if [ $consumers -lt $MIN_CONSUMERS ]; then
-                status_message="队列 $queue 消费者数量不足: $consumers (少于 $MIN_CONSUMERS)"
-                has_error=true
-                send_alert_email "警告" "$status_message"
-                echo -e "${YELLOW}警告：$status_message${NC}"
+            # 验证消费者数是否为数字
+            if is_number "$consumers"; then
+                if [ "${consumers%.*}" -lt "$MIN_CONSUMERS" ]; then
+                    status_message="队列 $queue 消费者数量不足: $consumers (少于 $MIN_CONSUMERS)"
+                    has_error=true
+                    send_alert_email "警告" "$status_message"
+                    echo -e "${YELLOW}警告：$status_message${NC}"
+                fi
             fi
         fi
     done <<< "$queue_status"
     
     # 检查内存使用
     local memory_usage=$(rabbitmqctl status 2>/dev/null | grep -A 5 "Memory" | grep "total" | awk '{print $2}')
-    local total_memory=$(free -m | grep "Mem:" | awk '{print $2}')
-    local memory_percent=$((memory_usage * 100 / total_memory))
-    
-    if [ $memory_percent -gt $MAX_MEMORY_USAGE ]; then
-        status_message="内存使用率过高: ${memory_percent}% (超过 ${MAX_MEMORY_USAGE}%)"
-        has_error=true
-        send_alert_email "警告" "$status_message"
-        echo -e "${YELLOW}警告：$status_message${NC}"
+    if is_number "$memory_usage"; then
+        local total_memory=$(free -m | grep "Mem:" | awk '{print $2}')
+        if is_number "$total_memory" && [ "$total_memory" -gt 0 ]; then
+            local memory_percent=$((memory_usage * 100 / total_memory))
+            
+            if [ "$memory_percent" -gt "$MAX_MEMORY_USAGE" ]; then
+                status_message="内存使用率过高: ${memory_percent}% (超过 ${MAX_MEMORY_USAGE}%)"
+                has_error=true
+                send_alert_email "警告" "$status_message"
+                echo -e "${YELLOW}警告：$status_message${NC}"
+            fi
+        fi
     fi
     
     if [ "$has_error" = false ]; then
