@@ -192,60 +192,36 @@ chmod 750 "$CONFIG_DIR" "$SECURITY_CONFIG_DIR" "$CERT_DIR"
 log "Restarting OpenSearch..."
 systemctl restart opensearch
 
-# 等待服务启动
-log "Waiting for OpenSearch to start..."
-max_attempts=120  # 增加等待时间到4分钟
+# 等待服务启动（静默方式）
 attempt=1
+max_attempts=120
 while [ $attempt -le $max_attempts ]; do
     if systemctl is-active --quiet opensearch; then
-        # 即使服务启动了，也要等待一会儿让它完全初始化
         sleep 10
-        # 尝试不同的方式检查服务是否真正就绪
-        if curl -sk "https://localhost:9200/_cluster/health" >/dev/null 2>&1; then
-            log "OpenSearch is ready!"
-            break
-        elif curl -sk "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
-            log "OpenSearch is ready (HTTP mode)!"
+        if curl -sk "https://localhost:9200/_cluster/health" >/dev/null 2>&1 || \
+           curl -sk "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
             break
         fi
     fi
-    echo -n "."
     sleep 2
     attempt=$((attempt + 1))
 done
 
 if [ $attempt -gt $max_attempts ]; then
-    warn "OpenSearch service is taking longer than expected to start"
-    warn "Checking service status..."
-    systemctl status opensearch
-    warn "Checking recent logs..."
-    journalctl -u opensearch --no-pager | tail -n 50
-    error "OpenSearch failed to start properly. Please check the logs above."
+    error "OpenSearch failed to start. Please check logs at /var/log/opensearch/magento-cluster.log"
 fi
-
-# 再次确认服务状态
-log "Verifying service status..."
-if ! systemctl is-active --quiet opensearch; then
-    error "OpenSearch service is not running. Please check the logs."
-fi
-
-# 等待额外的时间确保服务完全就绪
-sleep 20
 
 # 初始化安全配置
-log "Initializing security configuration..."
+log "Configuring security settings..."
 "$PLUGINS_DIR/opensearch-security/tools/securityadmin.sh" \
     -cd "$SECURITY_CONFIG_DIR" \
     -icl -nhnv \
     -cacert "$CERT_DIR/root-ca.pem" \
     -cert "$CERT_DIR/node.pem" \
-    -key "$CERT_DIR/node-key.pem" || {
-        warn "Security initialization failed. Checking service status..."
-        systemctl status opensearch
-        error "Failed to initialize security configuration. Please check the logs above."
+    -key "$CERT_DIR/node-key.pem" >/dev/null 2>&1 || {
+        error "Failed to initialize security configuration. Please check the logs."
     }
 
-# 等待安全配置生效
 sleep 10
 
 # 创建用户
@@ -262,60 +238,22 @@ for i in {1..3}; do
         \"created_at\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
       },
       \"description\": \"Magento OpenSearch administrator\"
-    }")
+    }" 2>/dev/null)
     
     if [ $? -eq 0 ] && echo "$RESPONSE" | grep -q "created"; then
-        log "User created successfully!"
         break
-    else
-        if [ $i -eq 3 ]; then
-            warn "Failed to create user after 3 attempts"
-            warn "Response: $RESPONSE"
-            warn "Checking service status..."
-            systemctl status opensearch
-            error "Failed to create user. Please check the logs above."
-        fi
-        log "Retrying user creation in 10 seconds... (attempt $i/3)"
-        sleep 10
     fi
+    [ $i -eq 3 ] && error "Failed to create user. Please check OpenSearch logs."
+    sleep 10
 done
 
 # 验证配置
-log "Verifying configuration..."
 for i in {1..3}; do
-    HEALTH_RESPONSE=$(curl -sk -u "$USERNAME:$PASSWORD" "https://localhost:9200/_cluster/health")
+    HEALTH_RESPONSE=$(curl -sk -u "$USERNAME:$PASSWORD" "https://localhost:9200/_cluster/health" 2>/dev/null)
     if [ $? -eq 0 ] && echo "$HEALTH_RESPONSE" | grep -q '"status"'; then
-        log "Configuration successful!"
-        log "Cluster health: $HEALTH_RESPONSE"
+        log "OpenSearch configured successfully!"
         break
-    else
-        if [ $i -eq 3 ]; then
-            warn "Configuration verification failed after 3 attempts"
-            warn "Response: $HEALTH_RESPONSE"
-            warn "Checking service status..."
-            systemctl status opensearch
-            warn "Please check the configuration manually"
-        else
-            log "Retrying verification in 10 seconds... (attempt $i/3)"
-            sleep 10
-        fi
     fi
-done
-
-# 输出配置信息
-log "OpenSearch configuration completed!"
-log "Important information:"
-log "1. Root CA certificate: $CERT_DIR/root-ca.pem"
-log "2. Node certificate: $CERT_DIR/node.pem"
-log "3. Client certificate: $CERT_DIR/client.pem"
-log "4. Username: $USERNAME"
-log "5. Password: $PASSWORD"
-log ""
-log "To test the connection:"
-log "curl -k -X GET \"https://localhost:9200/_cat/nodes?v\" -u \"$USERNAME:$PASSWORD\""
-log ""
-warn "Please make sure to:"
-warn "1. Update your Magento configuration with these credentials"
-warn "2. Import the root CA certificate into your trusted certificates if needed"
-warn "3. Backup the certificates in $CERT_DIR"
-warn "4. Consider changing the default admin password after initial setup" 
+    [ $i -eq 3 ] && warn "Configuration verification failed. Please verify manually."
+    sleep 5
+done 
