@@ -76,10 +76,17 @@ check_config_permissions() {
     
     # 检查配置文件权限
     if [ -f "$CONFIG_FILE" ]; then
-        current_perm=$(stat -f "%Lp" "$CONFIG_FILE")
+        # 跨平台兼容的权限检查
+        local current_perm
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            current_perm=$(stat -f "%Lp" "$CONFIG_FILE")
+        else
+            current_perm=$(stat -c "%a" "$CONFIG_FILE")
+        fi
+        
         if [ "$current_perm" != "600" ]; then
             chmod 600 "$CONFIG_FILE"
-            log "WARN" "配置文件权限已更正为 600"
+            echo -e "${YELLOW}警告：配置文件权限已更正为 600${NC}"
         fi
     fi
 }
@@ -88,10 +95,10 @@ check_config_permissions() {
 if [ -f "$CONFIG_FILE" ]; then
     check_config_permissions
     source "$CONFIG_FILE"
-    init_log
 else
-    echo -e "${RED}错误：配置文件不存在 ($CONFIG_FILE)${NC}"
-    exit 1
+    echo -e "${YELLOW}警告：配置文件不存在 ($CONFIG_FILE)${NC}"
+    # 设置默认值
+    LOG_FILE="/var/log/smtp-monitor.log"
 fi
 
 # 日志函数
@@ -99,8 +106,29 @@ log() {
     local level="$1"
     local message="$2"
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo -e "$timestamp [$level] $message" >> "$LOG_FILE"
     
+    # 如果日志文件未定义，使用默认值
+    LOG_FILE=${LOG_FILE:-"/var/log/smtp-monitor.log"}
+    
+    # 确保日志目录存在
+    local log_dir=$(dirname "$LOG_FILE")
+    if [ ! -d "$log_dir" ]; then
+        mkdir -p "$log_dir"
+        chmod 755 "$log_dir"
+    fi
+    
+    # 如果日志文件不存在，创建它
+    if [ ! -f "$LOG_FILE" ]; then
+        touch "$LOG_FILE"
+        chmod 644 "$LOG_FILE"
+    fi
+    
+    # 写入日志文件（如果有写入权限）
+    if [ -w "$LOG_FILE" ]; then
+        echo "$timestamp [$level] $message" >> "$LOG_FILE"
+    fi
+    
+    # 总是显示到控制台
     case "$level" in
         "ERROR")
             echo -e "${RED}错误：$message${NC}"
