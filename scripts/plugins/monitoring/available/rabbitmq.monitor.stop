@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# 检查 RabbitMQ 是否在运行
+if ! command -v rabbitmqctl &> /dev/null; then
+    echo -e "${RED}Error: RabbitMQ is not installed${NC}"
+    exit 1
+fi
+
+# 删除监控用户
+if rabbitmqctl list_users | grep -q "^monitor"; then
+    echo "Removing monitor user..."
+    rabbitmqctl delete_user monitor >/dev/null 2>&1
+fi
+
+# 可选：禁用管理插件
+# 注意：如果其他服务也在使用管理插件，不应该禁用它
+# if rabbitmq-plugins list -e | grep -q "rabbitmq_management"; then
+#     echo "Disabling management plugin..."
+#     rabbitmq-plugins disable rabbitmq_management >/dev/null 2>&1
+# fi
+
+echo -e "${GREEN}RabbitMQ monitor stopped successfully${NC}"

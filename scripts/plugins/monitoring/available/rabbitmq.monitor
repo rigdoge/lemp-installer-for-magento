@@ -1,0 +1,35 @@
+# RabbitMQ Monitor Configuration
+
+# 监控设置
+CHECK_INTERVAL=300          # 检查间隔（秒）
+MAX_QUEUE_SIZE=1000        # 队列最大消息数（超过将发出警告）
+MIN_CONSUMERS=1            # 每个队列最小消费者数
+MAX_MEMORY_USAGE=0.8       # 最大内存使用率（80%）
+
+# 告警设置
+ALERT_EMAIL="admin@example.com"
+ALERT_THRESHOLD=3          # 连续失败次数阈值
+
+# Magento 相关队列
+MAGENTO_QUEUES=(
+    "async.operations.all"
+    "inventory.source.items.cleanup"
+    "inventory.mass.update"
+    "inventory.reservations.cleanup"
+    "inventory.reservations.update"
+    "product_action_attribute.update"
+    "product_action_attribute.website.update"
+)
+
+# 监控用户凭据
+RABBITMQ_MONITOR_USER="monitor"
+RABBITMQ_MONITOR_PASSWORD="monitor_password"
+
+# API 设置
+RABBITMQ_API_PORT=15672
+RABBITMQ_API_HOST="localhost"
+
+# 日志设置
+LOG_FILE="/var/log/rabbitmq-monitor.log"
+MAX_LOG_SIZE=10M          # 日志文件最大大小
+ROTATE_LOGS=7             # 保留日志文件天数

@@ -1,0 +1,53 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# 检查 RabbitMQ 是否已安装
+if ! command -v rabbitmqctl &> /dev/null; then
+    echo -e "${RED}Error: RabbitMQ is not installed${NC}"
+    exit 1
+fi
+
+# 确保 RabbitMQ 服务正在运行
+if ! systemctl is-active --quiet rabbitmq-server; then
+    echo "Starting RabbitMQ service..."
+    systemctl start rabbitmq-server
+fi
+
+# 等待服务完全启动
+for i in {1..30}; do
+    if rabbitmqctl status >/dev/null 2>&1; then
+        break
+    fi
+    echo -n "."
+    sleep 1
+done
+
+# 检查是否启动成功
+if ! rabbitmqctl status >/dev/null 2>&1; then
+    echo -e "${RED}Error: Failed to start RabbitMQ service${NC}"
+    exit 1
+fi
+
+# 创建监控用户（如果不存在）
+if ! rabbitmqctl list_users | grep -q "^monitor"; then
+    echo "Creating monitor user..."
+    rabbitmqctl add_user monitor monitor_password >/dev/null 2>&1
+    rabbitmqctl set_user_tags monitor monitoring >/dev/null 2>&1
+    rabbitmqctl set_permissions -p / monitor ".*" ".*" ".*" >/dev/null 2>&1
+fi
+
+# 启用管理插件（如果未启用）
+if ! rabbitmq-plugins list -e | grep -q "rabbitmq_management"; then
+    echo "Enabling management plugin..."
+    rabbitmq-plugins enable rabbitmq_management >/dev/null 2>&1
+fi
+
+echo -e "${GREEN}RabbitMQ monitor initialized successfully${NC}"
+echo "Monitor user credentials:"
+echo "Username: monitor"
+echo "Password: monitor_password"
+echo "Management UI: http://localhost:15672"
