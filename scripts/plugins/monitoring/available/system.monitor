@@ -1,0 +1,95 @@
+# System Monitor Configuration
+
+# 监控设置
+CHECK_INTERVAL=60          # 检查间隔（秒）
+
+# CPU 阈值
+MAX_CPU_USAGE=90          # 最大 CPU 使用率（%）
+MAX_CPU_LOAD_1=8          # 1分钟最大负载
+MAX_CPU_LOAD_5=6          # 5分钟最大负载
+MAX_CPU_LOAD_15=4         # 15分钟最大负载
+MAX_CPU_IOWAIT=20         # 最大 IO 等待率（%）
+MAX_CPU_STEAL=5           # 最大 CPU 被偷取率（%）
+
+# 内存阈值
+MAX_MEMORY_USAGE=90       # 最大内存使用率（%）
+MAX_SWAP_USAGE=50         # 最大交换空间使用率（%）
+MIN_FREE_MEMORY=1024      # 最小可用内存（MB）
+MAX_PAGE_FAULTS=1000      # 每秒最大缺页次数
+
+# 磁盘阈值
+MAX_DISK_USAGE=90         # 最大磁盘使用率（%）
+MIN_FREE_SPACE=10240      # 最小可用空间（MB）
+MAX_INODE_USAGE=90        # 最大 inode 使用率（%）
+MAX_DISK_IO_UTIL=90       # 最大磁盘 IO 使用率（%）
+MAX_DISK_IO_WAIT=100      # 最大磁盘 IO 等待时间（ms）
+
+# 网络阈值
+MAX_BANDWIDTH_IN=1000     # 最大入站带宽（Mbps）
+MAX_BANDWIDTH_OUT=1000    # 最大出站带宽（Mbps）
+MAX_PACKET_LOSS=1         # 最大丢包率（%）
+MAX_NETWORK_ERRORS=100    # 每分钟最大网络错误数
+MAX_RETRANSMIT_RATE=5     # 最大重传率（%）
+
+# 进程阈值
+MAX_PROCESS_COUNT=5000    # 最大进程数
+MAX_ZOMBIE_PROCESS=5      # 最大僵尸进程数
+MAX_THREAD_COUNT=10000    # 最大线程数
+MAX_FD_USAGE=90          # 最大文件描述符使用率（%）
+
+# 系统阈值
+MAX_UPTIME_DAYS=365      # 最大运行天数（提醒重启）
+MIN_ENTROPY=200          # 最小熵值
+MAX_CONTEXT_SWITCHES=100000  # 每秒最大上下文切换次数
+MAX_INTERRUPTS=50000     # 每秒最大中断次数
+
+# 日志设置
+LOG_FILE="/var/log/system-monitor.log"
+LOG_LEVEL="info"         # debug, info, warn, error
+MAX_LOG_SIZE=100M        # 日志文件最大大小
+MAX_LOG_FILES=10         # 保留的日志文件数量
+
+# 告警设置
+ALERT_EMAIL="admin@example.com"
+ALERT_THRESHOLD=3        # 连续失败次数阈值
+ALERT_INTERVAL=300       # 告警间隔（秒）
+
+# 监控目录
+MONITOR_PATHS=(
+    "/var/www/magento"
+    "/var/log"
+    "/var/lib/mysql"
+    "/var/lib/opensearch"
+)
+
+# 监控服务
+MONITOR_SERVICES=(
+    "nginx"
+    "php8.2-fpm"
+    "mysql"
+    "opensearch"
+    "redis"
+    "rabbitmq-server"
+)
+
+# 监控端口
+MONITOR_PORTS=(
+    "80"    # HTTP
+    "443"   # HTTPS
+    "3306"  # MySQL
+    "9200"  # OpenSearch
+    "6379"  # Redis
+    "5672"  # RabbitMQ
+    "15672" # RabbitMQ Management
+)
+
+# 性能数据保存
+ENABLE_PERFORMANCE_HISTORY=true   # 是否保存历史数据
+HISTORY_DIR="/var/log/system-monitor/history"
+HISTORY_RETENTION_DAYS=30         # 历史数据保留天数
+
+# 自动清理设置
+ENABLE_AUTO_CLEANUP=true          # 是否启用自动清理
+CLEANUP_OLD_LOGS=true            # 清理旧日志
+CLEANUP_OLD_HISTORY=true         # 清理旧历史数据
+CLEANUP_INTERVAL=86400           # 清理间隔（秒） 

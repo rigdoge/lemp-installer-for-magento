@@ -1,0 +1,468 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# 加载配置
+source $(dirname "$0")/system.monitor
+
+# 检查 CPU 状态
+check_cpu_status() {
+    echo "CPU Status:"
+    
+    # 获取 CPU 使用率
+    local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
+    echo "- CPU Usage: $cpu_usage%"
+
+    # 获取负载
+    local load_1=$(uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $1}' | tr -d ' ')
+    local load_5=$(uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $2}' | tr -d ' ')
+    local load_15=$(uptime | awk -F'load average:' '{print $2}' | awk -F',' '{print $3}' | tr -d ' ')
+    echo "- Load Average: $load_1 (1m), $load_5 (5m), $load_15 (15m)"
+
+    # 获取 IO 等待和 CPU 被偷取率
+    local cpu_detail=$(top -bn1 | grep "Cpu(s)")
+    local iowait=$(echo "$cpu_detail" | awk '{print $10}')
+    local steal=$(echo "$cpu_detail" | awk '{print $12}')
+    echo "- IO Wait: $iowait%"
+    echo "- CPU Steal: $steal%"
+
+    local has_warning=0
+
+    # 检查 CPU 使用率
+    if [ $(echo "$cpu_usage > $MAX_CPU_USAGE" | bc -l) -eq 1 ]; then
+        echo -e "${RED}Error: High CPU usage${NC}"
+        return 1
+    fi
+
+    # 检查负载
+    if [ $(echo "$load_1 > $MAX_CPU_LOAD_1" | bc -l) -eq 1 ]; then
+        echo -e "${YELLOW}Warning: High 1-minute load average${NC}"
+        has_warning=1
+    fi
+
+    if [ $(echo "$load_5 > $MAX_CPU_LOAD_5" | bc -l) -eq 1 ]; then
+        echo -e "${YELLOW}Warning: High 5-minute load average${NC}"
+        has_warning=1
+    fi
+
+    if [ $(echo "$load_15 > $MAX_CPU_LOAD_15" | bc -l) -eq 1 ]; then
+        echo -e "${YELLOW}Warning: High 15-minute load average${NC}"
+        has_warning=1
+    fi
+
+    # 检查 IO 等待
+    if [ $(echo "$iowait > $MAX_CPU_IOWAIT" | bc -l) -eq 1 ]; then
+        echo -e "${YELLOW}Warning: High IO wait${NC}"
+        has_warning=1
+    fi
+
+    # 检查 CPU 被偷取率
+    if [ $(echo "$steal > $MAX_CPU_STEAL" | bc -l) -eq 1 ]; then
+        echo -e "${YELLOW}Warning: High CPU steal${NC}"
+        has_warning=1
+    fi
+
+    [ $has_warning -eq 1 ] && return 2
+    return 0
+}
+
+# 检查内存状态
+check_memory_status() {
+    echo "Memory Status:"
+    
+    # 获取内存信息
+    local mem_info=$(free -m)
+    local total_mem=$(echo "$mem_info" | awk '/Mem:/ {print $2}')
+    local used_mem=$(echo "$mem_info" | awk '/Mem:/ {print $3}')
+    local free_mem=$(echo "$mem_info" | awk '/Mem:/ {print $4}')
+    local mem_usage=$(echo "scale=2; $used_mem * 100 / $total_mem" | bc)
+    
+    # 获取交换空间信息
+    local total_swap=$(echo "$mem_info" | awk '/Swap:/ {print $2}')
+    local used_swap=$(echo "$mem_info" | awk '/Swap:/ {print $3}')
+    local swap_usage=$(echo "scale=2; $used_swap * 100 / $total_swap" | bc)
+
+    echo "- Total Memory: $total_mem MB"
+    echo "- Used Memory: $used_mem MB ($mem_usage%)"
+    echo "- Free Memory: $free_mem MB"
+    echo "- Swap Usage: $swap_usage%"
+
+    local has_warning=0
+
+    # 检查内存使用率
+    if [ $(echo "$mem_usage > $MAX_MEMORY_USAGE" | bc -l) -eq 1 ]; then
+        echo -e "${RED}Error: High memory usage${NC}"
+        return 1
+    fi
+
+    # 检查交换空间使用率
+    if [ $(echo "$swap_usage > $MAX_SWAP_USAGE" | bc -l) -eq 1 ]; then
+        echo -e "${YELLOW}Warning: High swap usage${NC}"
+        has_warning=1
+    fi
+
+    # 检查可用内存
+    if [ $free_mem -lt $MIN_FREE_MEMORY ]; then
+        echo -e "${YELLOW}Warning: Low free memory${NC}"
+        has_warning=1
+    fi
+
+    [ $has_warning -eq 1 ] && return 2
+    return 0
+}
+
+# 检查磁盘状态
+check_disk_status() {
+    echo "Disk Status:"
+    
+    local has_warning=0
+
+    # 检查磁盘使用率
+    echo "Disk Usage:"
+    for path in "${MONITOR_PATHS[@]}"; do
+        if [ -e "$path" ]; then
+            local disk_info=$(df -h "$path" | tail -n 1)
+            local usage=$(echo "$disk_info" | awk '{print $5}' | tr -d '%')
+            local free_space=$(echo "$disk_info" | awk '{print $4}')
+            local mount=$(echo "$disk_info" | awk '{print $6}')
+            
+            echo "- $path ($mount):"
+            echo "  Usage: $usage%"
+            echo "  Free: $free_space"
+
+            if [ $usage -gt $MAX_DISK_USAGE ]; then
+                echo -e "${RED}Error: High disk usage on $path${NC}"
+                return 1
+            fi
+
+            # 转换空闲空间到 MB
+            local free_mb=$(echo "$free_space" | awk '{
+                size = $1;
+                if (size ~ /G$/) { sub("G$", "", size); size *= 1024; }
+                else if (size ~ /T$/) { sub("T$", "", size); size *= 1024 * 1024; }
+                else if (size ~ /M$/) { sub("M$", "", size); }
+                print size;
+            }')
+
+            if [ $free_mb -lt $MIN_FREE_SPACE ]; then
+                echo -e "${YELLOW}Warning: Low free space on $path${NC}"
+                has_warning=1
+            fi
+        fi
+    done
+
+    # 检查 inode 使用率
+    echo "Inode Usage:"
+    for path in "${MONITOR_PATHS[@]}"; do
+        if [ -e "$path" ]; then
+            local inode_usage=$(df -i "$path" | tail -n 1 | awk '{print $5}' | tr -d '%')
+            echo "- $path: $inode_usage%"
+
+            if [ $inode_usage -gt $MAX_INODE_USAGE ]; then
+                echo -e "${YELLOW}Warning: High inode usage on $path${NC}"
+                has_warning=1
+            fi
+        fi
+    done
+
+    # 检查磁盘 IO
+    if command -v iostat &> /dev/null; then
+        echo "Disk IO:"
+        local io_stats=$(iostat -x 1 2 | tail -n +4 | tail -n 1)
+        local io_util=$(echo "$io_stats" | awk '{print $14}')
+        local io_wait=$(echo "$io_stats" | awk '{print $10}')
+        
+        echo "- IO Utilization: $io_util%"
+        echo "- IO Wait: $io_wait ms"
+
+        if [ $(echo "$io_util > $MAX_DISK_IO_UTIL" | bc -l) -eq 1 ]; then
+            echo -e "${YELLOW}Warning: High disk IO utilization${NC}"
+            has_warning=1
+        fi
+
+        if [ $(echo "$io_wait > $MAX_DISK_IO_WAIT" | bc -l) -eq 1 ]; then
+            echo -e "${YELLOW}Warning: High disk IO wait time${NC}"
+            has_warning=1
+        fi
+    fi
+
+    [ $has_warning -eq 1 ] && return 2
+    return 0
+}
+
+# 检查网络状态
+check_network_status() {
+    echo "Network Status:"
+    
+    local has_warning=0
+
+    # 检查网络接口状态
+    echo "Interface Status:"
+    local interfaces=$(ip -br link show | awk '{print $1}' | grep -v "lo")
+    for interface in $interfaces; do
+        local state=$(ip -br link show "$interface" | awk '{print $2}')
+        local stats=$(ip -s link show "$interface")
+        local rx_bytes=$(echo "$stats" | awk '/RX:/ {getline; print $1}')
+        local tx_bytes=$(echo "$stats" | awk '/TX:/ {getline; print $1}')
+        local rx_errors=$(echo "$stats" | awk '/RX:/ {getline; print $3}')
+        local tx_errors=$(echo "$stats" | awk '/TX:/ {getline; print $3}')
+
+        echo "- $interface:"
+        echo "  State: $state"
+        echo "  RX: $(numfmt --to=iec-i --suffix=B $rx_bytes)"
+        echo "  TX: $(numfmt --to=iec-i --suffix=B $tx_bytes)"
+        echo "  Errors: RX=$rx_errors TX=$tx_errors"
+
+        # 检查错误数
+        if [ $rx_errors -gt $MAX_NETWORK_ERRORS ] || [ $tx_errors -gt $MAX_NETWORK_ERRORS ]; then
+            echo -e "${YELLOW}Warning: High network errors on $interface${NC}"
+            has_warning=1
+        fi
+    done
+
+    # 检查网络连接状态
+    echo "Connection Status:"
+    for port in "${MONITOR_PORTS[@]}"; do
+        local conn_count=$(ss -ant | grep ":$port " | wc -l)
+        echo "- Port $port: $conn_count connections"
+    done
+
+    # 检查网络延迟
+    echo "Network Latency:"
+    local ping_result=$(ping -c 5 -q 8.8.8.8 2>/dev/null)
+    if [ $? -eq 0 ]; then
+        local packet_loss=$(echo "$ping_result" | grep "packet loss" | awk '{print $6}' | tr -d '%')
+        local avg_latency=$(echo "$ping_result" | grep "rtt" | awk -F'/' '{print $5}')
+        
+        echo "- Packet Loss: $packet_loss%"
+        echo "- Average Latency: $avg_latency ms"
+
+        if [ $(echo "$packet_loss > $MAX_PACKET_LOSS" | bc -l) -eq 1 ]; then
+            echo -e "${YELLOW}Warning: High packet loss${NC}"
+            has_warning=1
+        fi
+    else
+        echo -e "${RED}Error: Cannot ping external network${NC}"
+        return 1
+    fi
+
+    [ $has_warning -eq 1 ] && return 2
+    return 0
+}
+
+# 检查进程状态
+check_process_status() {
+    echo "Process Status:"
+    
+    # 获取进程统计信息
+    local total_processes=$(ps aux | wc -l)
+    local zombie_processes=$(ps aux | grep -w Z | wc -l)
+    local total_threads=$(ps -eLf | wc -l)
+    local fd_usage=$(echo "scale=2; $(lsof | wc -l) * 100 / $(sysctl -n fs.file-max)" | bc)
+
+    echo "- Total Processes: $total_processes"
+    echo "- Zombie Processes: $zombie_processes"
+    echo "- Total Threads: $total_threads"
+    echo "- File Descriptor Usage: $fd_usage%"
+
+    local has_warning=0
+
+    # 检查进程数
+    if [ $total_processes -gt $MAX_PROCESS_COUNT ]; then
+        echo -e "${YELLOW}Warning: High process count${NC}"
+        has_warning=1
+    fi
+
+    # 检查僵尸进程
+    if [ $zombie_processes -gt $MAX_ZOMBIE_PROCESS ]; then
+        echo -e "${YELLOW}Warning: Too many zombie processes${NC}"
+        has_warning=1
+    fi
+
+    # 检查线程数
+    if [ $total_threads -gt $MAX_THREAD_COUNT ]; then
+        echo -e "${YELLOW}Warning: High thread count${NC}"
+        has_warning=1
+    fi
+
+    # 检查文件描述符使用率
+    if [ $(echo "$fd_usage > $MAX_FD_USAGE" | bc -l) -eq 1 ]; then
+        echo -e "${YELLOW}Warning: High file descriptor usage${NC}"
+        has_warning=1
+    fi
+
+    # 检查关键服务状态
+    echo "Service Status:"
+    for service in "${MONITOR_SERVICES[@]}"; do
+        local status=$(systemctl is-active "$service" 2>/dev/null)
+        echo "- $service: $status"
+        
+        if [ "$status" != "active" ]; then
+            echo -e "${RED}Error: Service $service is not running${NC}"
+            return 1
+        fi
+    done
+
+    [ $has_warning -eq 1 ] && return 2
+    return 0
+}
+
+# 检查系统状态
+check_system_status() {
+    echo "System Status:"
+    
+    # 获取系统运行时间
+    local uptime_seconds=$(cat /proc/uptime | awk '{print $1}')
+    local uptime_days=$(echo "scale=0; $uptime_seconds / 86400" | bc)
+    echo "- Uptime: $uptime_days days"
+
+    # 获取系统熵值
+    local entropy=$(cat /proc/sys/kernel/random/entropy_avail)
+    echo "- Entropy Available: $entropy"
+
+    # 获取上下文切换和中断
+    local vmstat=$(vmstat 1 2 | tail -n 1)
+    local context_switches=$(echo "$vmstat" | awk '{print $12}')
+    local interrupts=$(echo "$vmstat" | awk '{print $11}')
+    echo "- Context Switches/sec: $context_switches"
+    echo "- Interrupts/sec: $interrupts"
+
+    local has_warning=0
+
+    # 检查运行时间
+    if [ $uptime_days -gt $MAX_UPTIME_DAYS ]; then
+        echo -e "${YELLOW}Warning: System has been running for too long${NC}"
+        has_warning=1
+    fi
+
+    # 检查熵值
+    if [ $entropy -lt $MIN_ENTROPY ]; then
+        echo -e "${YELLOW}Warning: Low entropy available${NC}"
+        has_warning=1
+    fi
+
+    # 检查上下文切换和中断
+    if [ $context_switches -gt $MAX_CONTEXT_SWITCHES ]; then
+        echo -e "${YELLOW}Warning: High context switch rate${NC}"
+        has_warning=1
+    fi
+
+    if [ $interrupts -gt $MAX_INTERRUPTS ]; then
+        echo -e "${YELLOW}Warning: High interrupt rate${NC}"
+        has_warning=1
+    fi
+
+    [ $has_warning -eq 1 ] && return 2
+    return 0
+}
+
+# 保存性能数据
+save_performance_data() {
+    if [ "$ENABLE_PERFORMANCE_HISTORY" = true ]; then
+        local timestamp=$(date +%Y%m%d-%H%M%S)
+        
+        # CPU 数据
+        local cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}')
+        echo "$timestamp $cpu_usage" >> "$HISTORY_DIR/cpu/usage.log"
+        
+        # 内存数据
+        local mem_info=$(free -m | grep Mem)
+        echo "$timestamp $(echo "$mem_info" | awk '{print $3/$2*100}')" >> "$HISTORY_DIR/memory/usage.log"
+        
+        # 磁盘数据
+        for path in "${MONITOR_PATHS[@]}"; do
+            if [ -e "$path" ]; then
+                local disk_usage=$(df -h "$path" | tail -n 1 | awk '{print $5}' | tr -d '%')
+                echo "$timestamp $disk_usage" >> "$HISTORY_DIR/disk/$(echo "$path" | tr '/' '_').log"
+            fi
+        done
+        
+        # 网络数据
+        local interfaces=$(ip -br link show | awk '{print $1}' | grep -v "lo")
+        for interface in $interfaces; do
+            local stats=$(ip -s link show "$interface")
+            local rx_bytes=$(echo "$stats" | awk '/RX:/ {getline; print $1}')
+            local tx_bytes=$(echo "$stats" | awk '/TX:/ {getline; print $1}')
+            echo "$timestamp $rx_bytes $tx_bytes" >> "$HISTORY_DIR/network/${interface}.log"
+        done
+        
+        # 进程数据
+        local process_count=$(ps aux | wc -l)
+        echo "$timestamp $process_count" >> "$HISTORY_DIR/process/count.log"
+    fi
+}
+
+# 主检查逻辑
+main() {
+    local exit_code=0
+
+    echo "System Monitor Status Check"
+    echo "=========================="
+    echo "Time: $(date)"
+    echo
+
+    # 检查 CPU 状态
+    check_cpu_status
+    local result=$?
+    [ $result -eq 1 ] && exit_code=1
+    [ $result -eq 2 ] && [ $exit_code -eq 0 ] && exit_code=2
+
+    echo
+
+    # 检查内存状态
+    check_memory_status
+    result=$?
+    [ $result -eq 1 ] && exit_code=1
+    [ $result -eq 2 ] && [ $exit_code -eq 0 ] && exit_code=2
+
+    echo
+
+    # 检查磁盘状态
+    check_disk_status
+    result=$?
+    [ $result -eq 1 ] && exit_code=1
+    [ $result -eq 2 ] && [ $exit_code -eq 0 ] && exit_code=2
+
+    echo
+
+    # 检查网络状态
+    check_network_status
+    result=$?
+    [ $result -eq 1 ] && exit_code=1
+    [ $result -eq 2 ] && [ $exit_code -eq 0 ] && exit_code=2
+
+    echo
+
+    # 检查进程状态
+    check_process_status
+    result=$?
+    [ $result -eq 1 ] && exit_code=1
+    [ $result -eq 2 ] && [ $exit_code -eq 0 ] && exit_code=2
+
+    echo
+
+    # 检查系统状态
+    check_system_status
+    result=$?
+    [ $result -eq 1 ] && exit_code=1
+    [ $result -eq 2 ] && [ $exit_code -eq 0 ] && exit_code=2
+
+    # 保存性能数据
+    save_performance_data
+
+    echo
+    case $exit_code in
+        0) echo -e "${GREEN}Status: OK${NC}" ;;
+        1) echo -e "${RED}Status: Error${NC}" ;;
+        2) echo -e "${YELLOW}Status: Warning${NC}" ;;
+    esac
+
+    return $exit_code
+}
+
+# 运行检查
+main 

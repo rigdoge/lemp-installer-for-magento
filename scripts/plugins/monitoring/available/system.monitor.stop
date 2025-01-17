@@ -1,0 +1,95 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# 加载配置
+source $(dirname "$0")/system.monitor
+
+# 停止性能数据收集
+stop_performance_data() {
+    if [ "$ENABLE_PERFORMANCE_HISTORY" = true ]; then
+        echo "停止性能数据收集..."
+        
+        # 删除历史数据目录
+        if [ -d "$HISTORY_DIR" ]; then
+            rm -rf "$HISTORY_DIR"
+            echo "已删除历史数据目录"
+        fi
+    fi
+}
+
+# 清理日志
+cleanup_logs() {
+    echo "清理监控日志..."
+    
+    # 删除监控日志
+    if [ -f "$LOG_FILE" ]; then
+        rm -f "$LOG_FILE"
+        echo "已删除监控日志文件"
+    fi
+    
+    # 删除日志轮转配置
+    if [ -f "/etc/logrotate.d/system-monitor" ]; then
+        rm -f "/etc/logrotate.d/system-monitor"
+        echo "已删除日志轮转配置"
+    fi
+}
+
+# 移除清理任务
+remove_cleanup_job() {
+    if [ "$ENABLE_AUTO_CLEANUP" = true ]; then
+        echo "移除自动清理任务..."
+        
+        # 删除清理脚本
+        if [ -f "/usr/local/bin/system-monitor-cleanup" ]; then
+            rm -f "/usr/local/bin/system-monitor-cleanup"
+            echo "已删除清理脚本"
+        fi
+        
+        # 删除 cron 任务
+        if [ -f "/etc/cron.d/system-monitor" ]; then
+            rm -f "/etc/cron.d/system-monitor"
+            echo "已删除定时清理任务"
+        fi
+    fi
+}
+
+# 恢复系统参数
+restore_system_parameters() {
+    echo "恢复系统参数..."
+    
+    # 删除网络调优配置
+    if [ -f "/etc/sysctl.d/99-network-tuning.conf" ]; then
+        rm -f "/etc/sysctl.d/99-network-tuning.conf"
+        echo "已删除网络调优配置"
+        
+        # 重新加载 sysctl 配置
+        sysctl --system
+    fi
+}
+
+# 主函数
+main() {
+    echo "停止系统监控..."
+
+    # 停止性能数据收集
+    stop_performance_data
+    
+    # 清理日志
+    cleanup_logs
+    
+    # 移除清理任务
+    remove_cleanup_job
+    
+    # 恢复系统参数
+    restore_system_parameters
+
+    echo -e "${GREEN}系统监控已停止${NC}"
+    return 0
+}
+
+# 运行主函数
+main 
