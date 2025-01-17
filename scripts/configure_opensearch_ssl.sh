@@ -167,6 +167,10 @@ thread_pool.search.queue_size: 1000
 indices.queries.cache.size: 25%
 indices.memory.index_buffer_size: 30%
 
+# 索引设置
+action.auto_create_index: +*,-security-auditlog-*,-.*
+action.destructive_requires_name: true
+
 # 日志设置
 logger.level: WARN
 EOF
