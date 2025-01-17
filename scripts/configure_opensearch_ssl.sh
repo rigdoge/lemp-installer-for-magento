@@ -24,12 +24,13 @@ error() {
 }
 
 # 检查参数
-if [ "$#" -ne 2 ]; then
-    error "Usage: $0 <username> <password>"
+if [ "$#" -lt 2 ]; then
+    error "Usage: $0 <username> <password> [delete]"
 fi
 
 USERNAME="$1"
 PASSWORD="$2"
+ACTION="${3:-create}"  # 默认为创建用户
 
 # 检查是否为root用户
 if [[ $EUID -ne 0 ]]; then
@@ -37,8 +38,27 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 # 检查 OpenSearch 是否已安装
-if ! command -v opensearch >/dev/null 2>&1; then
+if [ ! -d "/usr/local/opensearch" ] || [ ! -f "/etc/systemd/system/opensearch.service" ]; then
     error "OpenSearch is not installed. Please install OpenSearch first."
+fi
+
+# 检查 OpenSearch 服务状态
+if ! systemctl is-active --quiet opensearch; then
+    error "OpenSearch service is not running. Please start it first: sudo systemctl start opensearch"
+fi
+
+# 如果是删除用户操作
+if [ "$ACTION" = "delete" ]; then
+    log "Deleting user $USERNAME..."
+    RESPONSE=$(curl -sk -X DELETE "https://localhost:9200/_plugins/_security/api/internalusers/$USERNAME" \
+        -u "admin:admin" 2>/dev/null)
+    
+    if [ $? -eq 0 ] && echo "$RESPONSE" | grep -q "\"status\":\"OK\""; then
+        log "User $USERNAME deleted successfully"
+        exit 0
+    else
+        error "Failed to delete user $USERNAME. Response: $RESPONSE"
+    fi
 fi
 
 # 检查并安装必要的软件包
