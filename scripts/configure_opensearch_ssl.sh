@@ -194,12 +194,20 @@ systemctl restart opensearch
 
 # 等待服务启动
 log "Waiting for OpenSearch to start..."
-max_attempts=60
+max_attempts=120  # 增加等待时间到4分钟
 attempt=1
 while [ $attempt -le $max_attempts ]; do
-    if curl -sk "https://localhost:9200/_cluster/health" >/dev/null 2>&1; then
-        log "OpenSearch is ready!"
-        break
+    if systemctl is-active --quiet opensearch; then
+        # 即使服务启动了，也要等待一会儿让它完全初始化
+        sleep 10
+        # 尝试不同的方式检查服务是否真正就绪
+        if curl -sk "https://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+            log "OpenSearch is ready!"
+            break
+        elif curl -sk "http://localhost:9200/_cluster/health" >/dev/null 2>&1; then
+            log "OpenSearch is ready (HTTP mode)!"
+            break
+        fi
     fi
     echo -n "."
     sleep 2
@@ -207,8 +215,22 @@ while [ $attempt -le $max_attempts ]; do
 done
 
 if [ $attempt -gt $max_attempts ]; then
-    error "OpenSearch failed to start. Please check logs at /var/log/opensearch/magento-cluster.log"
+    warn "OpenSearch service is taking longer than expected to start"
+    warn "Checking service status..."
+    systemctl status opensearch
+    warn "Checking recent logs..."
+    journalctl -u opensearch --no-pager | tail -n 50
+    error "OpenSearch failed to start properly. Please check the logs above."
 fi
+
+# 再次确认服务状态
+log "Verifying service status..."
+if ! systemctl is-active --quiet opensearch; then
+    error "OpenSearch service is not running. Please check the logs."
+fi
+
+# 等待额外的时间确保服务完全就绪
+sleep 20
 
 # 初始化安全配置
 log "Initializing security configuration..."
@@ -217,34 +239,68 @@ log "Initializing security configuration..."
     -icl -nhnv \
     -cacert "$CERT_DIR/root-ca.pem" \
     -cert "$CERT_DIR/node.pem" \
-    -key "$CERT_DIR/node-key.pem"
+    -key "$CERT_DIR/node-key.pem" || {
+        warn "Security initialization failed. Checking service status..."
+        systemctl status opensearch
+        error "Failed to initialize security configuration. Please check the logs above."
+    }
+
+# 等待安全配置生效
+sleep 10
 
 # 创建用户
 log "Creating user $USERNAME..."
-curl -X PUT "https://localhost:9200/_plugins/_security/api/internalusers/$USERNAME" \
-    -H 'Content-Type: application/json' \
-    -k -u "admin:admin" \
-    -d "{
-  \"password\": \"$PASSWORD\",
-  \"backend_roles\": [\"admin\", \"all_access\"],
-  \"attributes\": {
-    \"type\": \"magento_admin\",
-    \"created_at\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
-  },
-  \"description\": \"Magento OpenSearch administrator\"
-}"
+for i in {1..3}; do
+    RESPONSE=$(curl -sk -X PUT "https://localhost:9200/_plugins/_security/api/internalusers/$USERNAME" \
+        -H 'Content-Type: application/json' \
+        -u "admin:admin" \
+        -d "{
+      \"password\": \"$PASSWORD\",
+      \"backend_roles\": [\"admin\", \"all_access\"],
+      \"attributes\": {
+        \"type\": \"magento_admin\",
+        \"created_at\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
+      },
+      \"description\": \"Magento OpenSearch administrator\"
+    }")
+    
+    if [ $? -eq 0 ] && echo "$RESPONSE" | grep -q "created"; then
+        log "User created successfully!"
+        break
+    else
+        if [ $i -eq 3 ]; then
+            warn "Failed to create user after 3 attempts"
+            warn "Response: $RESPONSE"
+            warn "Checking service status..."
+            systemctl status opensearch
+            error "Failed to create user. Please check the logs above."
+        fi
+        log "Retrying user creation in 10 seconds... (attempt $i/3)"
+        sleep 10
+    fi
+done
 
 # 验证配置
 log "Verifying configuration..."
-HEALTH_RESPONSE=$(curl -sk -u "$USERNAME:$PASSWORD" "https://localhost:9200/_cluster/health")
-if [ $? -eq 0 ] && echo "$HEALTH_RESPONSE" | grep -q '"status"'; then
-    log "Configuration successful!"
-    log "Cluster health: $HEALTH_RESPONSE"
-else
-    warn "Configuration verification failed"
-    warn "Response: $HEALTH_RESPONSE"
-    warn "Please check the configuration manually"
-fi
+for i in {1..3}; do
+    HEALTH_RESPONSE=$(curl -sk -u "$USERNAME:$PASSWORD" "https://localhost:9200/_cluster/health")
+    if [ $? -eq 0 ] && echo "$HEALTH_RESPONSE" | grep -q '"status"'; then
+        log "Configuration successful!"
+        log "Cluster health: $HEALTH_RESPONSE"
+        break
+    else
+        if [ $i -eq 3 ]; then
+            warn "Configuration verification failed after 3 attempts"
+            warn "Response: $HEALTH_RESPONSE"
+            warn "Checking service status..."
+            systemctl status opensearch
+            warn "Please check the configuration manually"
+        else
+            log "Retrying verification in 10 seconds... (attempt $i/3)"
+            sleep 10
+        fi
+    fi
+done
 
 # 输出配置信息
 log "OpenSearch configuration completed!"
