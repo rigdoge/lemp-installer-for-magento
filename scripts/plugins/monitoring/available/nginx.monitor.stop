@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+# 加载配置
+source $(dirname "$0")/nginx.monitor
+
+# 检查 Nginx 是否在运行
+if ! command -v nginx &> /dev/null; then
+    echo -e "${RED}Error: Nginx is not installed${NC}"
+    exit 1
+fi
+
+# 移除状态页面配置
+echo "Removing Nginx status configuration..."
+rm -f /etc/nginx/conf.d/nginx-status.conf
+
+# 移除监控日志格式
+echo "Removing monitor log format..."
+sed -i '/log_format monitor/d' "$NGINX_CONF_PATH"
+sed -i '/access_log.*monitor/d' "$NGINX_CONF_PATH"
+
+# 移除日志轮转配置
+echo "Removing log rotation configuration..."
+rm -f /etc/logrotate.d/nginx-monitor
+
+# 删除监控日志
+if [ -f "$LOG_FILE" ]; then
+    echo "Removing monitoring log..."
+    rm -f "$LOG_FILE"
+fi
+
+# 重启 Nginx
+echo "Restarting Nginx..."
+systemctl restart nginx
+
+echo -e "${GREEN}Nginx monitor stopped successfully${NC}" 

@@ -1,0 +1,122 @@
+#!/bin/bash
+
+# 颜色定义
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+# 加载配置
+source $(dirname "$0")/nginx.monitor
+
+# 检查 Nginx 是否已安装
+if ! command -v nginx &> /dev/null; then
+    echo -e "${RED}Error: Nginx is not installed${NC}"
+    exit 1
+fi
+
+# 确保 Nginx 服务正在运行
+if ! systemctl is-active --quiet nginx; then
+    echo "Starting Nginx service..."
+    systemctl start nginx
+fi
+
+# 等待服务完全启动
+echo "Waiting for Nginx to start..."
+for i in {1..30}; do
+    if systemctl is-active --quiet nginx; then
+        break
+    fi
+    echo -n "."
+    sleep 1
+done
+
+# 检查是否启动成功
+if ! systemctl is-active --quiet nginx; then
+    echo -e "${RED}Error: Failed to start Nginx service${NC}"
+    exit 1
+fi
+
+# 配置 Nginx 状态页面
+echo "Configuring Nginx status page..."
+cat > /etc/nginx/conf.d/nginx-status.conf << 'EOL'
+server {
+    listen 127.0.0.1:80;
+    server_name localhost;
+
+    access_log off;
+    allow 127.0.0.1;
+    deny all;
+
+    location /nginx_status {
+        stub_status on;
+    }
+
+    location = /server-status {
+        stub_status on;
+        access_log off;
+    }
+}
+EOL
+
+# 配置日志格式
+echo "Configuring log format..."
+if ! grep -q 'log_format monitor' "$NGINX_CONF_PATH"; then
+    sed -i '/http {/a \    log_format monitor '"'"'$remote_addr - $remote_user [$time_local] "$request" $status $body_bytes_sent "$http_referer" "$http_user_agent" $request_time $upstream_response_time'"'"';' "$NGINX_CONF_PATH"
+fi
+
+# 配置访问日志
+echo "Configuring access log..."
+if ! grep -q 'access_log.*monitor' "$NGINX_CONF_PATH"; then
+    sed -i '/http {/a \    access_log /var/log/nginx/access.log monitor;' "$NGINX_CONF_PATH"
+fi
+
+# 创建日志目录
+echo "Creating log directory..."
+mkdir -p "$(dirname "$LOG_FILE")"
+touch "$LOG_FILE"
+chown nginx:nginx "$LOG_FILE"
+chmod 640 "$LOG_FILE"
+
+# 配置日志轮转
+echo "Configuring log rotation..."
+cat > /etc/logrotate.d/nginx-monitor << EOL
+$LOG_FILE {
+    size $MAX_LOG_SIZE
+    rotate $MAX_LOG_FILES
+    missingok
+    notifempty
+    compress
+    delaycompress
+    postrotate
+        [ -f /var/run/nginx.pid ] && kill -USR1 \$(cat /var/run/nginx.pid)
+    endscript
+}
+EOL
+
+# 检查 SSL 证书
+if [ "$CHECK_SSL_EXPIRY" = true ] && [ -f "$SSL_CERT_PATH" ]; then
+    echo "Checking SSL certificate..."
+    ssl_end_date=$(openssl x509 -enddate -noout -in "$SSL_CERT_PATH" | cut -d= -f2)
+    ssl_days_left=$(( ( $(date -d "$ssl_end_date" +%s) - $(date +%s) ) / 86400 ))
+    
+    if [ $ssl_days_left -lt $SSL_EXPIRY_WARN_DAYS ]; then
+        echo -e "${YELLOW}Warning: SSL certificate will expire in $ssl_days_left days${NC}"
+    fi
+fi
+
+# 重启 Nginx
+echo "Restarting Nginx..."
+systemctl restart nginx
+
+# 验证配置
+echo "Verifying configuration..."
+if curl -s "http://localhost:${NGINX_STATUS_PORT}${NGINX_STATUS_PATH}" | grep -q "Active connections"; then
+    echo -e "${GREEN}Nginx monitor initialized successfully${NC}"
+    echo "Status page: http://localhost:${NGINX_STATUS_PORT}${NGINX_STATUS_PATH}"
+    echo "Monitor log: $LOG_FILE"
+    exit 0
+else
+    echo -e "${RED}Error: Failed to verify Nginx status page${NC}"
+    exit 1
+fi 
