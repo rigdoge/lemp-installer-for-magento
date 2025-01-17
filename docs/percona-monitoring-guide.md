@@ -9,67 +9,67 @@
 - 资源使用监控：CPU、内存、磁盘使用情况
 - 表空间监控：数据文件和表空间使用情况
 
-## Percona Server 简介
-
-### 数据库对比分析
-Percona Server、MySQL Community Edition 和 MariaDB 都是基于 MySQL 的数据库系统，各有特色：
-
-#### 1. 主要特性对比
+## 1. Percona vs. MySQL Community Edition vs. MariaDB
 
 | 特性 | Percona Server | MySQL Community Edition | MariaDB |
 |------|----------------|------------------------|----------|
 | 性能优化 | ✅ 更强的性能调优，适用于高负载 | 🚫 基础优化，适用于普通负载 | ✅ 额外优化，改进查询执行 |
-| 存储引擎 | ✅ 提供增强的 InnoDB（XtraDB） | ✅ 官方 InnoDB | ✅ 提供 Aria、TokuDB 等引擎 |
+| 存储引擎 | ✅ 提供增强的 InnoDB（Percona XtraDB） | ✅ 官方 InnoDB | ✅ 提供 Aria、TokuDB 等引擎 |
 | 复制方式 | ✅ Percona XtraDB Cluster（PXC） | ✅ MySQL Group Replication | ✅ Galera Cluster |
-| 开源许可 | ✅ 100% 开源（GPL） | ✅ 100% 开源（GPL） | ✅ 100% 开源（GPL） |
+| 开源 & 许可证 | ✅ 100% 开源（GPL） | ✅ 100% 开源（GPL） | ✅ 100% 开源（GPL） |
 | 兼容性 | ✅ 与 MySQL 兼容 | ✅ 官方标准 | ⚠️ 与 MySQL 8 兼容性有所不同 |
-| 工具支持 | ✅ Percona Toolkit、PMM 监控 | ⚠️ 仅 MySQL 官方工具 | ✅ MariaDB 自带管理工具 |
-| 企业支持 | ✅ 提供企业级支持 | 🚫 需 Enterprise 订阅 | ✅ MariaDB 提供企业版 |
-| 性能监控 | ✅ 内置 PMM | 🚫 需要第三方工具 | ✅ 自带 MariaDB Monitor |
+| 工具支持 | ✅ 提供 Percona Toolkit、PMM 监控 | ⚠️ 仅 MySQL 官方工具 | ✅ MariaDB 自带管理工具 |
+| 企业支持 | ✅ 提供企业级支持 | 🚫 无免费支持（需 MySQL Enterprise 订阅） | ✅ MariaDB 提供企业版 |
+| 性能监控 | ✅ 内置 PMM（Percona Monitoring and Management） | 🚫 需要第三方工具 | ✅ 自带 MariaDB Monitor |
 
-#### 2. 详细分析
+## 2. 详细分析
 
-##### Percona Server
-- **核心优势**：
-  - XtraDB：替代 MySQL 原生 InnoDB，提供更好的事务处理能力
-  - Percona XtraBackup：支持无锁备份，适用于高并发数据库
-  - PMM：提供详细的性能监控工具
-- **适用场景**：
-  - 高并发、高可用系统
-  - 金融交易平台
-  - 大型电商业务
-  - 企业级应用
+### (1) Percona Server
 
-##### MySQL Community Edition
-- **核心特点**：
-  - 标准 InnoDB，无额外优化
-  - 基础复制方式（主从复制、Group Replication）
-  - 免费，企业支持需订阅
-- **适用场景**：
-  - 中小型项目
-  - 通用数据库需求
-  - 标准 MySQL 应用
+Percona Server 是基于 MySQL 开发的高性能数据库，专注于优化和扩展性，特别适用于高负载环境：
 
-##### MariaDB
-- **核心特点**：
-  - 多样化存储引擎：Aria（MyISAM 替代）、TokuDB（高压缩）
-  - Galera Cluster 支持多主复制
-  - 部分 SQL 语法与 MySQL 8 不完全兼容
-- **适用场景**：
-  - 数据存储灵活性要求高的应用
-  - 日志系统
-  - 数据仓库
+• XtraDB：替代 MySQL 原生 InnoDB，提供更好的事务处理能力。
 
-#### 3. 选择建议
+• Percona XtraBackup：支持无锁备份，适用于高并发数据库。
+
+• Percona Monitoring and Management (PMM)：提供详细的性能监控工具。
+
+• 适用于：高并发、高可用、金融、电商业务。
+
+### (2) MySQL Community Edition
+
+MySQL 社区版是 Oracle 官方维护的 MySQL 版本：
+
+• 标准 InnoDB，没有额外优化。
+
+• 基础复制方式（主从复制、Group Replication）。
+
+• 免费，但企业支持需购买 MySQL Enterprise Edition。
+
+• 适用于：中小型项目、通用数据库需求。
+
+### (3) MariaDB
+
+MariaDB 是 MySQL 的分支（fork），提供更多的存储引擎和优化：
+
+• Aria（MyISAM 替代）、TokuDB（高压缩存储）、ColumnStore（列存储）。
+
+• Galera Cluster 支持多主复制，比 MySQL Group Replication 更成熟。
+
+• 部分 SQL 语法与 MySQL 8 不完全兼容（例如 JSON 处理）。
+
+• 适用于：数据存储灵活性较高的应用，如日志、数据仓库。
+
+## 3. 选择建议
 
 | 使用场景 | 推荐数据库 |
 |---------|------------|
-| 需要高性能 MySQL | 🚀 Percona Server |
-| 标准 MySQL 兼容性 | ✅ MySQL Community |
-| 丰富的存储引擎需求 | ✅ MariaDB |
+| 需要高性能 MySQL | 🚀 Percona |
+| 标准 MySQL 兼容性 | ✅ MySQL |
+| 希望使用更丰富的存储引擎 | ✅ MariaDB |
 | 高可用、多主集群 | 🔥 Percona XtraDB Cluster / MariaDB Galera |
 
-> 注：对于 Magento、WordPress 等高性能需求的应用，Percona Server 是更好的选择。如果是普通的 MySQL 应用，MySQL Community 或 MariaDB 也足够使用。
+如果你的 Magento、WordPress、或企业级数据库需要更高性能，Percona 是更好的选择。如果只是普通的 MySQL 应用，MySQL 或 MariaDB 也足够。🚀
 
 ## 安装配置
 ### 配置文件
