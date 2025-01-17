@@ -256,4 +256,15 @@ for i in {1..3}; do
     fi
     [ $i -eq 3 ] && warn "Configuration verification failed. Please verify manually."
     sleep 5
-done 
+done
+
+# 输出配置信息
+log "Configuration details:"
+log "- Username: $USERNAME"
+log "- Password: $PASSWORD"
+log "- Certificates location: $CERT_DIR"
+log ""
+log "Test command:"
+log "curl -k \"https://localhost:9200/_cat/nodes?v\" -u \"$USERNAME:$PASSWORD\""
+log ""
+warn "Remember to update your Magento configuration with these credentials" 
