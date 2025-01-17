@@ -91,6 +91,7 @@ authorityKeyIdentifier = keyid:always,issuer:always
 DNS.1 = localhost
 DNS.2 = opensearch.local
 DNS.3 = *.magento.local
+DNS.4 = *.local
 IP.1 = 127.0.0.1
 EOF
 
