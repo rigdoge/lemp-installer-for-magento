@@ -6,9 +6,47 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# 检查依赖
+check_dependencies() {
+    # 检查 Postfix
+    if ! command -v postfix &> /dev/null; then
+        echo -e "${RED}错误：未安装 Postfix${NC}"
+        echo -e "请使用以下命令安装 Postfix："
+        echo -e "Ubuntu/Debian: sudo apt-get install postfix"
+        echo -e "CentOS/RHEL: sudo yum install postfix"
+        echo -e "macOS: brew install postfix"
+        exit 1
+    fi
+    
+    # 检查 Postfix 服务状态
+    if ! systemctl is-active --quiet postfix 2>/dev/null; then
+        echo -e "${YELLOW}警告：Postfix 服务未运行${NC}"
+        echo -e "请使用以下命令启动 Postfix："
+        echo -e "sudo systemctl start postfix"
+        exit 1
+    fi
+    
+    # 检查 OpenSSL（用于密码加密）
+    if ! command -v openssl &> /dev/null; then
+        echo -e "${RED}错误：未安装 OpenSSL${NC}"
+        echo -e "请安装 OpenSSL 以支持密码加密功能"
+        exit 1
+    fi
+    
+    # 检查 nc 命令（用于连接测试）
+    if ! command -v nc &> /dev/null; then
+        echo -e "${RED}错误：未安装 netcat${NC}"
+        echo -e "请安装 netcat 以支持连接测试功能"
+        exit 1
+    fi
+}
+
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="$SCRIPT_DIR/smtp.conf"
+
+# 检查依赖
+check_dependencies
 
 # 初始化日志
 init_log() {
