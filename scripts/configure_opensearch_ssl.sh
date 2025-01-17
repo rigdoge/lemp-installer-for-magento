@@ -226,19 +226,23 @@ curl -X PUT "https://localhost:9200/_plugins/_security/api/internalusers/$USERNA
     -k -u "admin:admin" \
     -d "{
   \"password\": \"$PASSWORD\",
-  \"backend_roles\": [\"admin\"],
+  \"backend_roles\": [\"admin\", \"all_access\"],
   \"attributes\": {
-    \"type\": \"magento_admin\"
-  }
+    \"type\": \"magento_admin\",
+    \"created_at\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"
+  },
+  \"description\": \"Magento OpenSearch administrator\"
 }"
 
 # 验证配置
 log "Verifying configuration..."
-RESPONSE=$(curl -sk -w "%{http_code}" -o /dev/null -u "$USERNAME:$PASSWORD" "https://localhost:9200/_cat/nodes?v")
-if [ "$RESPONSE" = "200" ]; then
+HEALTH_RESPONSE=$(curl -sk -u "$USERNAME:$PASSWORD" "https://localhost:9200/_cluster/health")
+if [ $? -eq 0 ] && echo "$HEALTH_RESPONSE" | grep -q '"status"'; then
     log "Configuration successful!"
+    log "Cluster health: $HEALTH_RESPONSE"
 else
-    warn "Configuration verification failed with status code: $RESPONSE"
+    warn "Configuration verification failed"
+    warn "Response: $HEALTH_RESPONSE"
     warn "Please check the configuration manually"
 fi
 
@@ -257,4 +261,5 @@ log ""
 warn "Please make sure to:"
 warn "1. Update your Magento configuration with these credentials"
 warn "2. Import the root CA certificate into your trusted certificates if needed"
-warn "3. Backup the certificates in $CERT_DIR" 
+warn "3. Backup the certificates in $CERT_DIR"
+warn "4. Consider changing the default admin password after initial setup" 
