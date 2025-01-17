@@ -14,6 +14,9 @@ STATUS_FILE="/tmp/rabbitmq_monitor_status"
 # 加载配置
 source "$SCRIPT_DIR/rabbitmq.monitor"
 
+# 加载通知库
+source "$SCRIPT_DIR/../lib/notify.sh"
+
 # 发送告警邮件
 send_alert_email() {
     local status="$1"
@@ -123,6 +126,42 @@ check_rabbitmq_status() {
         echo "2" > "$STATUS_FILE"
         exit 2
     fi
+}
+
+check_queue() {
+    local queue_name="$1"
+    local messages=$(rabbitmqctl list_queues name messages | grep "^$queue_name\s" | awk '{print $2}')
+    local consumers=$(rabbitmqctl list_queues name consumers | grep "^$queue_name\s" | awk '{print $2}')
+    
+    if [ -n "$messages" ] && [ "$messages" -gt 1000 ]; then
+        send_notification "error" "RabbitMQ" "队列堆积" "队列 $queue_name 中有 $messages 条消息待处理"
+        return 1
+    fi
+    
+    if [ -n "$consumers" ] && [ "$consumers" -eq 0 ]; then
+        send_notification "warning" "RabbitMQ" "无消费者" "队列 $queue_name 没有活动的消费者"
+        return 2
+    fi
+    
+    return 0
+}
+
+check_memory() {
+    local memory_used=$(rabbitmqctl status | grep -A 5 "memory" | grep "total" | awk '{print $2}' | tr -d ',')
+    local memory_limit=$(rabbitmqctl status | grep -A 5 "memory_limit" | grep "memory_limit" | awk '{print $2}' | tr -d ',')
+    
+    if [ -n "$memory_used" ] && [ -n "$memory_limit" ]; then
+        local usage=$((memory_used * 100 / memory_limit))
+        if [ $usage -gt 90 ]; then
+            send_notification "error" "RabbitMQ" "内存使用过高" "内存使用率: ${usage}%"
+            return 1
+        elif [ $usage -gt 80 ]; then
+            send_notification "warning" "RabbitMQ" "内存使用较高" "内存使用率: ${usage}%"
+            return 2
+        fi
+    fi
+    
+    return 0
 }
 
 # 执行状态检查
