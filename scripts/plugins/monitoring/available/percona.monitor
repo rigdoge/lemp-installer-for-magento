@@ -1,0 +1,107 @@
+# Percona Server 8.0 监控配置
+
+# 监控设置
+CHECK_INTERVAL=60          # 检查间隔（秒）
+
+# 数据库连接设置
+DB_HOST="localhost"
+DB_PORT=3306
+DB_USER="monitor"         # 监控用户
+DB_PASS="monitor_pass"    # 监控用户密码
+DB_SOCKET="/var/run/mysqld/mysqld.sock"  # Unix socket 文件
+
+# 连接池设置
+MAX_CONNECTIONS=1000      # 最大连接数
+MAX_USER_CONNECTIONS=100  # 每用户最大连接数
+MAX_CONNECT_ERRORS=100    # 最大连接错误数
+
+# 性能阈值
+MAX_SLOW_QUERIES=100      # 每分钟最大慢查询数
+MAX_QUERY_TIME=10         # 最大查询时间（秒）
+MAX_LOCK_TIME=10         # 最大锁等待时间（秒）
+MAX_DEADLOCKS=5          # 每分钟最大死锁数
+
+# InnoDB 设置
+MAX_BUFFER_POOL_USAGE=90  # 最大缓冲池使用率（%）
+MIN_BUFFER_POOL_HIT=95    # 最小缓冲池命中率（%）
+MAX_DIRTY_PAGES_PCT=75    # 最大脏页比例（%）
+MAX_ROW_LOCK_WAITS=50    # 每分钟最大行锁等待数
+
+# 复制设置
+MAX_REPLICATION_LAG=60    # 最大复制延迟（秒）
+MAX_RELAY_LOG_SPACE=1024  # 最大中继日志空间（MB）
+
+# 表空间设置
+MAX_TABLE_USAGE=90        # 最大表空间使用率（%）
+MAX_INDEX_USAGE=90        # 最大索引空间使用率（%）
+
+# 查询缓存设置
+MAX_QUERY_CACHE_SIZE=512  # 最大查询缓存大小（MB）
+MIN_QUERY_CACHE_HIT=30    # 最小查询缓存命中率（%）
+
+# 临时表设置
+MAX_TEMP_TABLES=1000      # 每分钟最大临时表数
+MAX_TEMP_DISK_TABLES=100  # 每分钟最大磁盘临时表数
+
+# 日志设置
+LOG_FILE="/var/log/percona-monitor.log"
+LOG_LEVEL="info"         # debug, info, warn, error
+MAX_LOG_SIZE=100M        # 日志文件最大大小
+MAX_LOG_FILES=10         # 保留的日志文件数量
+
+# 告警设置
+ALERT_EMAIL="admin@example.com"
+ALERT_THRESHOLD=3        # 连续失败次数阈值
+ALERT_INTERVAL=300       # 告警间隔（秒）
+
+# 监控项目
+MONITOR_ITEMS=(
+    "connections"        # 连接状态
+    "innodb"            # InnoDB 状态
+    "replication"       # 复制状态
+    "performance"       # 性能指标
+    "tablespaces"       # 表空间
+    "logs"              # 日志状态
+)
+
+# 性能数据保存
+ENABLE_PERFORMANCE_HISTORY=true   # 是否保存历史数据
+HISTORY_DIR="/var/log/percona-monitor/history"
+HISTORY_RETENTION_DAYS=30         # 历史数据保留天数
+
+# 监控的关键表
+CRITICAL_TABLES=(
+    "catalog_product_entity"
+    "catalog_category_entity"
+    "customer_entity"
+    "sales_order"
+    "sales_order_item"
+)
+
+# 监控的关键索引
+CRITICAL_INDEXES=(
+    "catalog_product_entity_sku"
+    "sales_order_increment_id"
+    "customer_entity_email"
+)
+
+# 慢查询设置
+SLOW_QUERY_LOG="/var/log/mysql/mysql-slow.log"
+MIN_SLOW_QUERY_TIME=2    # 最小慢查询时间（秒）
+MAX_SLOW_LOG_SIZE=1024M  # 慢查询日志最大大小
+
+# 自动清理设置
+ENABLE_AUTO_CLEANUP=true          # 是否启用自动清理
+CLEANUP_OLD_LOGS=true            # 清理旧日志
+CLEANUP_OLD_HISTORY=true         # 清理旧历史数据
+CLEANUP_INTERVAL=86400           # 清理间隔（秒）
+
+# 监控脚本
+STATUS_SCRIPT="/usr/bin/mysqladmin"
+PROCESS_SCRIPT="/usr/bin/mysql"
+BACKUP_DIR="/var/backup/mysql"    # 备份目录
+
+# SSL 设置
+SSL_CA="/etc/mysql/ssl/ca.pem"
+SSL_CERT="/etc/mysql/ssl/client-cert.pem"
+SSL_KEY="/etc/mysql/ssl/client-key.pem" 
