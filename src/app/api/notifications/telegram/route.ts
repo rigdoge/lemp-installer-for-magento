@@ -44,7 +44,7 @@ export async function POST(request: Request) {
         }
 
         // 使用 monitor.sh 脚本更新配置
-        const command = `sudo /opt/lemp-installer-for-magento/scripts/monitor.sh update-telegram "${botToken}" "${chatId}" "${enabled}"`;
+        const command = `sudo /home/doge/lemp-installer-for-magento/scripts/monitor.sh update-telegram "${botToken}" "${chatId}" "${enabled}"`;
         console.log('Executing command:', command);
         
         const { stdout, stderr } = await execAsync(command, { shell: '/bin/bash' });
