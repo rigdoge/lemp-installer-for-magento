@@ -11,7 +11,8 @@ import {
     Switch,
     FormControlLabel,
     Alert,
-    CircularProgress
+    CircularProgress,
+    Stack
 } from '@mui/material';
 import { TelegramConfig as TelegramConfigType } from '../../types/notification';
 
@@ -23,6 +24,7 @@ export const TelegramConfig: React.FC = () => {
     });
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [testing, setTesting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
 
@@ -61,20 +63,35 @@ export const TelegramConfig: React.FC = () => {
             }
 
             setSuccess(true);
-            
-            // 测试消息
-            if (config.enabled) {
-                await fetch('/api/notifications/telegram/test', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
-                });
-            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unknown error');
         } finally {
             setSaving(false);
+        }
+    };
+
+    // 测试消息
+    const handleTest = async () => {
+        setTesting(true);
+        setError(null);
+
+        try {
+            const res = await fetch('/api/notifications/telegram', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            });
+
+            if (!res.ok) {
+                throw new Error('Failed to send test message');
+            }
+
+            setSuccess(true);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to send test message');
+        } finally {
+            setTesting(false);
         }
     };
 
@@ -138,14 +155,22 @@ export const TelegramConfig: React.FC = () => {
                         helperText="您可以从 @userinfobot 获取您的 Chat ID"
                     />
 
-                    <Button
-                        type="submit"
-                        variant="contained"
-                        disabled={saving || !config.enabled}
-                        sx={{ mt: 2 }}
-                    >
-                        {saving ? '保存中...' : '保存配置'}
-                    </Button>
+                    <Stack direction="row" spacing={2} sx={{ mt: 2 }}>
+                        <Button
+                            type="submit"
+                            variant="contained"
+                            disabled={saving || !config.enabled}
+                        >
+                            {saving ? '保存中...' : '保存配置'}
+                        </Button>
+                        <Button
+                            variant="outlined"
+                            onClick={handleTest}
+                            disabled={testing || !config.enabled || !success}
+                        >
+                            {testing ? '发送中...' : '发送测试消息'}
+                        </Button>
+                    </Stack>
                 </Box>
             </CardContent>
         </Card>

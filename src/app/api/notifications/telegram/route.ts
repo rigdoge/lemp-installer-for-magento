@@ -18,7 +18,7 @@ export async function GET() {
 // 更新配置
 export async function POST(request: Request) {
     try {
-        const { botToken, chatId } = await request.json();
+        const { enabled, botToken, chatId } = await request.json();
         
         if (!botToken || !chatId) {
             return NextResponse.json(
@@ -28,12 +28,33 @@ export async function POST(request: Request) {
         }
 
         // 使用 monitor.sh 脚本更新配置
-        await execAsync(`sudo /opt/lemp-manager/scripts/monitor.sh update-telegram "${botToken}" "${chatId}"`);
+        await execAsync(`sudo /opt/lemp-manager/scripts/monitor.sh update-telegram "${botToken}" "${chatId}" "${enabled}"`);
 
         return NextResponse.json({ success: true });
     } catch (error) {
+        console.error('Error updating Telegram configuration:', error);
         return NextResponse.json(
             { error: 'Failed to update Telegram configuration' },
+            { status: 500 }
+        );
+    }
+}
+
+// 测试 Telegram 通知
+export async function PUT(request: Request) {
+    try {
+        const { stdout } = await execAsync('curl -s http://localhost/nginx_status');
+        const message = `测试消息\n\nNginx 状态:\n${stdout}`;
+        
+        // 获取配置
+        const configPath = '/etc/monitoring/telegram.conf';
+        const { stdout: config } = await execAsync(`[ -f ${configPath} ] && source ${configPath} && curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" -d "chat_id=$CHAT_ID&text=${encodeURIComponent(message)}"`);
+        
+        return NextResponse.json({ success: true, result: config });
+    } catch (error) {
+        console.error('Error sending test message:', error);
+        return NextResponse.json(
+            { error: 'Failed to send test message' },
             { status: 500 }
         );
     }

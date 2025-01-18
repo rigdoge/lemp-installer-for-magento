@@ -319,14 +319,15 @@ uninstall_monitor() {
 # 更新 Telegram 配置
 update_telegram() {
     check_root
-    if [ -z "$2" ] || [ -z "$3" ]; then
-        echo "用法: $0 update-telegram <bot_token> <chat_id>"
+    if [ -z "$2" ] || [ -z "$3" ] || [ -z "$4" ]; then
+        echo "用法: $0 update-telegram <bot_token> <chat_id> <enabled>"
         exit 1
     fi
     
     # 保存配置到文件
     mkdir -p "$CONFIG_DIR"
     cat > "$CONFIG_DIR/telegram.conf" << EOF
+ENABLED="$4"
 BOT_TOKEN="$2"
 CHAT_ID="$3"
 EOF
@@ -350,7 +351,7 @@ main() {
             update_telegram "$@"
             ;;
         *)
-            echo "用法: $0 {install|uninstall|update-telegram <bot_token> <chat_id>}"
+            echo "用法: $0 {install|uninstall|update-telegram <bot_token> <chat_id> <enabled>}"
             exit 1
             ;;
     esac
