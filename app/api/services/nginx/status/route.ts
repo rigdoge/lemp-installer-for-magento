@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
-import { sendTelegramMessage } from '@/utils/telegram';
+import { sendTelegramMessage } from '../../../../utils/telegram';
 
 const execAsync = promisify(exec);
 const STATUS_FILE = path.join('/home/doge/lemp-installer-for-magento/config', 'nginx_status.json');
@@ -29,11 +29,13 @@ async function saveStatus(status: string) {
 }
 
 export async function GET() {
+    let lastStatus: string | null = null;
+    
     try {
         console.log('Checking Nginx status...');
         
         // 获取上一次的状态
-        const lastStatus = await getLastStatus();
+        lastStatus = await getLastStatus();
         
         // 使用 systemctl 检查 Nginx 状态
         const { stdout } = await execAsync('systemctl is-active nginx', { shell: '/bin/bash' });
