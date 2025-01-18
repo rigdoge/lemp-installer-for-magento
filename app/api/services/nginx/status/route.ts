@@ -48,16 +48,25 @@ async function saveStatus(status: string) {
 // 检查 Nginx 状态
 async function checkNginxStatus(): Promise<string> {
     try {
-        const { stdout } = await execAsync('systemctl is-active nginx', { shell: '/bin/bash' });
-        const status = stdout.trim();
-        console.log('Raw nginx status:', status);
-        return status;
+        // 检测操作系统
+        const { stdout: osType } = await execAsync('uname');
+        const isLinux = osType.trim().toLowerCase() === 'linux';
+        
+        if (isLinux) {
+            // Linux 使用 systemctl
+            const { stdout } = await execAsync('systemctl is-active nginx');
+            return stdout.trim();
+        } else {
+            // macOS 使用 ps 命令检查
+            const { stdout } = await execAsync('ps aux | grep nginx | grep -v grep');
+            return stdout.includes('nginx') ? 'active' : 'inactive';
+        }
     } catch (error) {
-        console.error('Error executing systemctl:', error);
+        console.error('Error checking nginx status:', error);
         if (error instanceof Error) {
             console.error('Error details:', error.message);
         }
-        return 'failed';
+        return 'inactive';
     }
 }
 
