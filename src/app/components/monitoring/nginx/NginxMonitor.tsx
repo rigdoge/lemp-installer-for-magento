@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
-import useServiceMonitor from '@/hooks/useServiceMonitor';
+import { useServiceMonitor } from '@/hooks/useServiceMonitor';
 
 export default function NginxMonitor() {
-  const { status, isLoading, error } = useServiceMonitor('nginx');
+  const { status, isLoading: loading, error } = useServiceMonitor('nginx');
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Box display="flex" justifyContent="center" p={3}>
         <CircularProgress />
