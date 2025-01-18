@@ -7,6 +7,7 @@ import {
   Typography,
   Alert,
   CircularProgress,
+  Paper,
 } from '@mui/material';
 
 export default function TelegramConfig() {
@@ -18,6 +19,7 @@ export default function TelegramConfig() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   useEffect(() => {
     fetchConfig();
@@ -26,19 +28,32 @@ export default function TelegramConfig() {
   const fetchConfig = async () => {
     try {
       setIsLoading(true);
+      setError('');
+      console.log('Fetching configuration...');
+      
       const response = await fetch('/api/notifications/telegram');
       const data = await response.json();
+      console.log('Fetch response:', data);
       
       if (!response.ok) {
         throw new Error(data.error || '获取配置失败');
       }
 
-      setIsEnabled(data.enabled === 'true');
+      setIsEnabled(data.enabled === true);
       setBotToken(data.botToken || '');
       setChatId(data.chatId || '');
+      setDebugInfo({
+        responseStatus: response.status,
+        responseData: data,
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
       console.error('Fetch error:', error);
       setError(`获取配置失败：${error instanceof Error ? error.message : '未知错误'}`);
+      setDebugInfo({
+        error: error instanceof Error ? error.message : '未知错误',
+        timestamp: new Date().toISOString()
+      });
     } finally {
       setIsLoading(false);
     }
@@ -49,12 +64,14 @@ export default function TelegramConfig() {
       setIsTesting(true);
       setError('');
       setSuccess('');
+      console.log('Testing configuration...');
 
       const response = await fetch('/api/notifications/telegram', {
         method: 'PUT',
       });
 
       const data = await response.json();
+      console.log('Test response:', data);
       
       if (!response.ok) {
         throw new Error(data.error || '测试消息发送失败');
@@ -74,6 +91,7 @@ export default function TelegramConfig() {
       setIsSaving(true);
       setError('');
       setSuccess('');
+      console.log('Saving configuration...');
 
       const response = await fetch('/api/notifications/telegram', {
         method: 'POST',
@@ -88,9 +106,9 @@ export default function TelegramConfig() {
       });
 
       const data = await response.json();
+      console.log('Save response:', data);
       
       if (!response.ok) {
-        console.error('Save failed:', data);
         throw new Error(data.error || `HTTP error! status: ${response.status}`);
       }
 
@@ -121,7 +139,7 @@ export default function TelegramConfig() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Telegram 通知设置 <Typography component="span" color="primary" sx={{ fontSize: '0.8em' }}>[v1]</Typography>
+        Telegram 通知设置 <Typography component="span" color="primary" sx={{ fontSize: '0.8em' }}>[v2 - Debug]</Typography>
       </Typography>
 
       {error && (
@@ -190,6 +208,17 @@ export default function TelegramConfig() {
           {isTesting ? <CircularProgress size={24} /> : '发送测试消息'}
         </Button>
       </Box>
+
+      {debugInfo && (
+        <Paper sx={{ mt: 3, p: 2, backgroundColor: '#f5f5f5' }}>
+          <Typography variant="h6" gutterBottom>
+            调试信息
+          </Typography>
+          <pre style={{ margin: 0, whiteSpace: 'pre-wrap' }}>
+            {JSON.stringify(debugInfo, null, 2)}
+          </pre>
+        </Paper>
+      )}
     </Box>
   );
 } 
