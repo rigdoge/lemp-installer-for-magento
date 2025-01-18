@@ -18,5 +18,13 @@ export interface NginxStatus {
 
 export interface ServiceStatus {
     isRunning: boolean;
-    metrics?: Record<string, any>;
+    metrics?: {
+        status: string;
+        [key: string]: any;
+    };
+}
+
+export interface ServiceError {
+    error: string;
+    details?: any;
 } 

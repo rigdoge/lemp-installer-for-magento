@@ -5,8 +5,7 @@ export interface TelegramConfig {
 }
 
 export interface NotificationMessage {
-    type: 'info' | 'warning' | 'error';
     title: string;
     message: string;
-    timestamp: string;
+    type: 'info' | 'warning' | 'error';
 } 
