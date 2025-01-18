@@ -176,26 +176,70 @@ EOF
     # 创建 AdminApp 组件
     mkdir -p app/components
     cat > app/components/AdminApp.tsx << EOF
-import React from 'react';
-import { Admin, Resource } from 'react-admin';
-import simpleRestProvider from 'ra-data-simple-rest';
-import { ServiceList } from '@/components/services/ServiceList';
+'use client';
 
-const dataProvider = simpleRestProvider('/api');
+import React, { useState } from 'react';
+import { Box, Container, Paper, Tab, Tabs } from '@mui/material';
+import dynamic from 'next/dynamic';
+
+const NginxMonitor = dynamic(() => import('@/components/monitoring/nginx/NginxMonitor'), { ssr: false });
+const TelegramConfig = dynamic(() => import('@/components/notifications/TelegramConfig'), { ssr: false });
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={\`tabpanel-\${index}\`}
+      aria-labelledby={\`tab-\${index}\`}
+      {...other}
+    >
+      {value === index && (
+        <Box sx={{ p: 3 }}>
+          {children}
+        </Box>
+      )}
+    </div>
+  );
+}
 
 export default function AdminApp() {
-    return (
-        <Admin
-            dataProvider={dataProvider}
-            darkTheme={{ palette: { mode: 'dark' } }}
-            defaultTheme="dark"
+  const [tabValue, setTabValue] = useState(0);
+
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setTabValue(newValue);
+  };
+
+  return (
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Paper sx={{ width: '100%', mb: 2 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          aria-label="管理面板"
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
         >
-            <Resource
-                name="services"
-                list={ServiceList}
-            />
-        </Admin>
-    );
+          <Tab label="Nginx 监控" />
+          <Tab label="Telegram 配置" />
+        </Tabs>
+
+        <TabPanel value={tabValue} index={0}>
+          <NginxMonitor />
+        </TabPanel>
+        <TabPanel value={tabValue} index={1}>
+          <TelegramConfig />
+        </TabPanel>
+      </Paper>
+    </Container>
+  );
 }
 EOF
 
@@ -564,5 +608,112 @@ main() {
             ;;
     esac
 }
+
+# 创建 NginxMonitor 组件
+mkdir -p app/components/monitoring/nginx
+cat > app/components/monitoring/nginx/NginxMonitor.tsx << EOF
+'use client';
+
+import React from 'react';
+import { Box, Typography, Paper, CircularProgress } from '@mui/material';
+import { useServiceMonitor } from '@/hooks/useServiceMonitor';
+import type { ServiceStatus } from '@/types/monitoring';
+
+export default function NginxMonitor() {
+  const { status, loading, error } = useServiceMonitor('nginx');
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" p={3}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Paper sx={{ p: 3, bgcolor: '#ffebee' }}>
+        <Typography color="error">
+          错误：{error}
+        </Typography>
+      </Paper>
+    );
+  }
+
+  const isActive = status?.isRunning ?? false;
+
+  return (
+    <Paper sx={{ p: 3, bgcolor: isActive ? '#e8f5e9' : '#ffebee' }}>
+      <Typography variant="h5" gutterBottom>
+        Nginx 状态
+      </Typography>
+      <Typography>
+        当前状态：
+        <Box component="span" sx={{ color: isActive ? 'success.main' : 'error.main', fontWeight: 'bold' }}>
+          {isActive ? '运行中' : '已停止'}
+        </Box>
+      </Typography>
+    </Paper>
+  );
+}
+EOF
+
+# 创建 hooks 目录和 useServiceMonitor hook
+mkdir -p app/hooks
+cat > app/hooks/useServiceMonitor.ts << EOF
+'use client';
+
+import { useState, useEffect } from 'react';
+import type { ServiceStatus } from '@/types/monitoring';
+
+export function useServiceMonitor(serviceName: string) {
+  const [status, setStatus] = useState<ServiceStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const response = await fetch(\`/api/services/\${serviceName}/status\`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch status');
+        }
+        const data = await response.json();
+        setStatus(data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 1000);
+    return () => clearInterval(interval);
+  }, [serviceName]);
+
+  return { status, loading, error };
+}
+EOF
+
+# 创建 types 目录和监控类型定义
+mkdir -p app/types
+cat > app/types/monitoring.ts << EOF
+export interface ServiceStatus {
+  isRunning: boolean;
+  metrics: {
+    status: string;
+    lastStatus: string | null;
+    statusChanged: boolean;
+    timestamp: string;
+  };
+}
+
+export interface ServiceError {
+  error: string;
+  details?: unknown;
+}
+EOF
 
 main "$@"
