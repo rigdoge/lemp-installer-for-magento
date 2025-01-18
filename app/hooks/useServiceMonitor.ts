@@ -25,7 +25,7 @@ export function useServiceMonitor(serviceName: string) {
         };
 
         fetchStatus();
-        const interval = setInterval(fetchStatus, 5000); // Poll every 5 seconds
+        const interval = setInterval(fetchStatus, 1000); // Poll every 1 second
 
         return () => clearInterval(interval);
     }, [serviceName]);
