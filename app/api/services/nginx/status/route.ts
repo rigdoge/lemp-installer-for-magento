@@ -3,7 +3,7 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
 import path from 'path';
-import { sendTelegramMessage } from '../../../../utils/telegram';
+import { sendTelegramMessage } from '@/utils/telegram';
 
 const execAsync = promisify(exec);
 const CONFIG_DIR = '/home/doge/lemp-installer-for-magento/config';
