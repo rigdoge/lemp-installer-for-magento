@@ -163,7 +163,7 @@ EOF
 import dynamic from 'next/dynamic';
 import './globals.css';
 
-const AdminApp = dynamic(() => import('@/components/AdminApp'), { 
+const AdminApp = dynamic(() => import('./components/AdminApp'), { 
   ssr: false,
   loading: () => <div>Loading...</div>
 });
@@ -182,8 +182,8 @@ import React, { useState } from 'react';
 import { Box, Container, Paper, Tab, Tabs } from '@mui/material';
 import dynamic from 'next/dynamic';
 
-const NginxMonitor = dynamic(() => import('@/components/monitoring/nginx/NginxMonitor'), { ssr: false });
-const TelegramConfig = dynamic(() => import('@/components/notifications/TelegramConfig'), { ssr: false });
+const NginxMonitor = dynamic(() => import('./monitoring/nginx/NginxMonitor'), { ssr: false });
+const TelegramConfig = dynamic(() => import('./notifications/TelegramConfig'), { ssr: false });
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -287,6 +287,164 @@ export default function NginxMonitor() {
           {isActive ? '运行中' : '已停止'}
         </Box>
       </Typography>
+    </Paper>
+  );
+}
+EOF
+
+    # 创建 TelegramConfig 组件
+    mkdir -p app/components/notifications
+    cat > app/components/notifications/TelegramConfig.tsx << EOF
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, TextField, Button, Paper, Stack, FormControlLabel, Switch } from '@mui/material';
+
+interface TelegramConfig {
+  enabled: boolean;
+  botToken: string;
+  chatId: string;
+}
+
+export default function TelegramConfig() {
+  const [config, setConfig] = useState<TelegramConfig>({
+    enabled: false,
+    botToken: '',
+    chatId: ''
+  });
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchConfig();
+  }, []);
+
+  const fetchConfig = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/notifications/telegram/config');
+      if (!response.ok) {
+        throw new Error('Failed to fetch config');
+      }
+      const data = await response.json();
+      setConfig(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error('Error fetching config:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      const response = await fetch('/api/notifications/telegram/config', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(config),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save config');
+      }
+
+      setMessage('配置已保存');
+      setError(null);
+
+      // 如果配置已启用，发送测试消息
+      if (config.enabled) {
+        await handleTest();
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error('Error saving config:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTest = async () => {
+    try {
+      const response = await fetch('/api/notifications/telegram/test', {
+        method: 'POST',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send test message');
+      }
+
+      setMessage('测试消息已发送');
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error');
+      console.error('Error sending test message:', err);
+    }
+  };
+
+  if (loading) {
+    return <Typography>加载中...</Typography>;
+  }
+
+  return (
+    <Paper component="form" onSubmit={handleSave} sx={{ p: 3 }}>
+      <Stack spacing={3}>
+        <Typography variant="h6">Telegram 通知配置</Typography>
+
+        <FormControlLabel
+          control={
+            <Switch
+              checked={config.enabled}
+              onChange={(e) => setConfig({ ...config, enabled: e.target.checked })}
+            />
+          }
+          label="启用通知"
+        />
+
+        <TextField
+          label="Bot Token"
+          value={config.botToken}
+          onChange={(e) => setConfig({ ...config, botToken: e.target.value })}
+          fullWidth
+          required
+        />
+
+        <TextField
+          label="Chat ID"
+          value={config.chatId}
+          onChange={(e) => setConfig({ ...config, chatId: e.target.value })}
+          fullWidth
+          required
+        />
+
+        {error && (
+          <Typography color="error">
+            错误：{error}
+          </Typography>
+        )}
+
+        {message && (
+          <Typography color="success.main">
+            {message}
+          </Typography>
+        )}
+
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            type="submit"
+            variant="contained"
+            disabled={saving}
+          >
+            保存配置
+          </Button>
+        </Box>
+      </Stack>
     </Paper>
   );
 }
