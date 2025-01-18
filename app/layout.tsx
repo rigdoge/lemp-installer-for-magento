@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
-import { ThemeProvider, CssBaseline } from '@mui/material';
-import theme from './theme';
+import { Admin, Resource } from 'react-admin';
+import simpleRestProvider from 'ra-data-simple-rest';
+
+const dataProvider = simpleRestProvider('/api');
 
 export default function RootLayout({
   children,
@@ -18,12 +19,13 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body>
-        <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            {children}
-          </ThemeProvider>
-        </AppRouterCacheProvider>
+        <Admin 
+          dataProvider={dataProvider}
+          darkTheme={{ palette: { mode: 'dark' } }}
+          defaultTheme="dark"
+        >
+          {children}
+        </Admin>
       </body>
     </html>
   );
