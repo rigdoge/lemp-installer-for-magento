@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import type { MonitoringConfig } from '../../../../types/monitoring';
+import type { MonitoringConfig } from '@/types/monitoring';
 
 const CONFIG_FILE = path.join('/home/doge/lemp-installer-for-magento/config', 'monitoring.json');
 
