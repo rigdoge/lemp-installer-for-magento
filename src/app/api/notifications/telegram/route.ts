@@ -29,8 +29,8 @@ export async function GET() {
             const configData = await fs.readFile(CONFIG_FILE, 'utf8');
             console.log('Config loaded:', configData);
             return NextResponse.json(JSON.parse(configData));
-        } catch (error) {
-            if (error.code === 'ENOENT') {
+        } catch (error: any) {
+            if (error?.code === 'ENOENT') {
                 // 如果文件不存在，返回默认配置
                 return NextResponse.json({
                     enabled: false,
