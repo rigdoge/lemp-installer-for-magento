@@ -2,14 +2,16 @@ import { NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
-const CONFIG_FILE = path.join(process.env.CONFIG_DIR || '/etc/lemp-manager', 'telegram.json');
+const CONFIG_FILE = path.join(process.cwd(), 'config', 'telegram.json');
 
 // 确保配置目录存在
 function ensureConfigDir() {
   const configDir = path.dirname(CONFIG_FILE);
   if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true });
+    fs.mkdirSync(configDir, { recursive: true, mode: 0o755 });
   }
+  // 确保目录权限正确设置
+  fs.chmodSync(configDir, 0o755);
 }
 
 // 读取配置
@@ -38,7 +40,10 @@ function readConfig() {
 function saveConfig(config: any) {
   try {
     ensureConfigDir();
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2));
+    // 设置文件权限为 666 (rw-rw-rw-)
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify(config, null, 2), { mode: 0o666 });
+    // 确保文件权限正确设置
+    fs.chmodSync(CONFIG_FILE, 0o666);
     return true;
   } catch (err) {
     console.error('Error saving config:', err);
