@@ -121,7 +121,7 @@ export default function TelegramConfig() {
   return (
     <Box>
       <Typography variant="h4" gutterBottom>
-        Telegram 通知设置
+        Telegram 通知设置 <Typography component="span" color="primary" sx={{ fontSize: '0.8em' }}>[v1]</Typography>
       </Typography>
 
       {error && (
