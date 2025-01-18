@@ -28,8 +28,8 @@ create_directories() {
     mkdir -p "$PANEL_DIR"
     mkdir -p "$LOG_DIR"
     # 前端目录
-    mkdir -p "$PANEL_DIR/frontend/src/app"
-    mkdir -p "$PANEL_DIR/frontend/src/components"
+    mkdir -p "$PANEL_DIR/frontend/app"
+    mkdir -p "$PANEL_DIR/frontend/app/components"
     # 后端目录
     mkdir -p "$PANEL_DIR/backend/src/modules/services"
     mkdir -p "$PANEL_DIR/backend/src/modules/system"
@@ -105,7 +105,7 @@ EOF
       }
     ],
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./app/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
@@ -114,7 +114,7 @@ EOF
 EOF
 
     # 创建根布局文件
-    cat > src/app/layout.tsx << EOF
+    cat > app/layout.tsx << EOF
 import React from 'react';
 
 export default function RootLayout({
@@ -136,7 +136,7 @@ export default function RootLayout({
 EOF
 
     # 创建 global.css
-    cat > src/app/globals.css << EOF
+    cat > app/globals.css << EOF
 * {
   box-sizing: border-box;
   padding: 0;
@@ -157,7 +157,7 @@ body {
 EOF
 
     # 更新主页面组件
-    cat > src/app/page.tsx << EOF
+    cat > app/page.tsx << EOF
 'use client';
 
 import dynamic from 'next/dynamic';
@@ -174,8 +174,8 @@ export default function Page() {
 EOF
 
     # 创建 AdminApp 组件
-    mkdir -p src/components
-    cat > src/components/AdminApp.tsx << EOF
+    mkdir -p app/components
+    cat > app/components/AdminApp.tsx << EOF
 import React from 'react';
 import { Admin, Resource } from 'react-admin';
 import simpleRestProvider from 'ra-data-simple-rest';
@@ -200,8 +200,8 @@ export default function AdminApp() {
 EOF
 
     # 创建 ServiceList 组件
-    mkdir -p src/components/services
-    cat > src/components/services/ServiceList.tsx << EOF
+    mkdir -p app/components/services
+    cat > app/components/services/ServiceList.tsx << EOF
 import React from 'react';
 import {
     List,

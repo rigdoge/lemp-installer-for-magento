@@ -4,7 +4,8 @@ import { exec } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
-const CONFIG_FILE = path.join('/home/doge/lemp-installer-for-magento/config', 'telegram.json');
+const CONFIG_DIR = process.env.CONFIG_DIR || '/home/doge/lemp-installer-for-magento/config';
+const CONFIG_FILE = path.join(CONFIG_DIR, 'telegram.json');
 
 interface TelegramConfig {
     enabled: boolean;
