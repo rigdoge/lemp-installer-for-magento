@@ -50,13 +50,19 @@ install_dependencies() {
 # 安装 Web UI
 install_web_ui() {
     echo -e "${GREEN}安装前端 UI...${NC}"
-    cd "$PANEL_DIR/frontend"
     
-    # 复制当前目录下的所有文件到安装目录
-    cp -r ../../app "$PANEL_DIR/frontend/"
-    cp -r ../../package.json "$PANEL_DIR/frontend/"
-    cp -r ../../tsconfig.json "$PANEL_DIR/frontend/"
-    cp -r ../../next.config.js "$PANEL_DIR/frontend/"
+    # 获取脚本所在目录的绝对路径
+    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+    PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
+    
+    # 复制项目文件到安装目录
+    cp -r "$PROJECT_ROOT/app" "$PANEL_DIR/frontend/"
+    cp -r "$PROJECT_ROOT/package.json" "$PANEL_DIR/frontend/"
+    cp -r "$PROJECT_ROOT/tsconfig.json" "$PANEL_DIR/frontend/"
+    cp -r "$PROJECT_ROOT/next.config.js" "$PANEL_DIR/frontend/"
+
+    # 进入前端目录
+    cd "$PANEL_DIR/frontend"
 
     # 安装依赖
     echo -e "${GREEN}安装 Node.js 依赖...${NC}"
@@ -64,7 +70,7 @@ install_web_ui() {
 
     # 构建应用
     echo -e "${GREEN}构建应用...${NC}"
-    ./node_modules/.bin/next build
+    PATH="$PANEL_DIR/frontend/node_modules/.bin:$PATH" next build
 }
 
 # 安装后端服务
