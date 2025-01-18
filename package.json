@@ -1,6 +1,6 @@
 {
   "name": "lemp-manager-frontend",
-  "version": "1.2.7",
+  "version": "1.2.8",
   "private": true,
   "scripts": {
     "dev": "npx next dev -p 3001",
@@ -8,11 +8,10 @@
     "start": "npx next start -p 3001"
   },
   "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.0",
-    "@mui/icons-material": "^5.16.14",
-    "@mui/material": "^5.16.14",
-    "@mui/material-nextjs": "^6.3.1",
+    "@emotion/react": "^11.11.3",
+    "@emotion/styled": "^11.11.0",
+    "@mui/material": "^5.15.0",
+    "@mui/material-nextjs": "^6.3.0",
     "next": "14.0.4",
     "ra-data-simple-rest": "^4.16.0",
     "react": "^18.2.0",

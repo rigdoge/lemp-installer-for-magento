@@ -4,8 +4,8 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { Box, Tab, Tabs } from '@mui/material';
 
-const NginxMonitor = dynamic(() => import('./monitoring/nginx/NginxMonitor'), { ssr: false });
 const PrometheusMonitor = dynamic(() => import('./monitoring/PrometheusMonitor'), { ssr: false });
+const PrometheusConfig = dynamic(() => import('./monitoring/PrometheusConfig'), { ssr: false });
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -52,7 +52,7 @@ export default function AdminApp() {
         <PrometheusMonitor />
       </TabPanel>
       <TabPanel value={tabValue} index={1}>
-        <NginxMonitor />
+        <PrometheusConfig />
       </TabPanel>
     </Box>
   );
