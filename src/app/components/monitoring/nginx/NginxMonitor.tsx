@@ -3,6 +3,7 @@
 import React from 'react';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import { useServiceMonitor } from '@/hooks/useServiceMonitor';
+import type { ServiceStatus } from '@/types/monitoring';
 
 export default function NginxMonitor() {
   const { status, loading, error } = useServiceMonitor('nginx');
@@ -25,7 +26,7 @@ export default function NginxMonitor() {
     );
   }
 
-  const isActive = status === 'active';
+  const isActive = status?.isRunning ?? false;
 
   return (
     <Paper sx={{ p: 3, bgcolor: isActive ? '#e8f5e9' : '#ffebee' }}>
