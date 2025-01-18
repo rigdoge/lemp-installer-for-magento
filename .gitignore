@@ -19,7 +19,9 @@ config/*
 .vscode/
 *.sublime-* 
 
+# Next.js
 node_modules/
 .next/
+/app/
 dist/
 build/ 
