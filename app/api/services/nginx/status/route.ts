@@ -6,7 +6,7 @@ import path from 'path';
 import { sendTelegramMessage } from '../../../../utils/telegram';
 
 const execAsync = promisify(exec);
-const CONFIG_DIR = process.env.CONFIG_DIR || '/home/doge/lemp-installer-for-magento/config';
+const CONFIG_DIR = path.join(process.cwd(), 'config');
 const STATUS_FILE = path.join(CONFIG_DIR, 'nginx_status.json');
 
 // 读取上一次的状态
