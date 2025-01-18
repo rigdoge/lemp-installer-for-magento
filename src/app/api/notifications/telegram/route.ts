@@ -7,7 +7,7 @@ import path from 'path';
 const execAsync = promisify(exec);
 
 // 配置文件路径
-const CONFIG_FILE = path.join(process.cwd(), 'config', 'telegram.json');
+const CONFIG_FILE = path.join('/home/doge/lemp-installer-for-magento', 'config', 'telegram.json');
 
 // 确保配置目录存在
 async function ensureConfigDir() {
@@ -24,10 +24,24 @@ async function ensureConfigDir() {
             uid: stats.uid,
             gid: stats.gid,
             path: configDir,
-            cwd: process.cwd()
+            appDir: process.cwd(),
+            configFile: CONFIG_FILE
         });
+
+        // 确保配置文件存在
+        try {
+            await fs.access(CONFIG_FILE);
+            console.log('Config file exists');
+        } catch (error) {
+            console.log('Creating empty config file');
+            await fs.writeFile(CONFIG_FILE, JSON.stringify({
+                enabled: false,
+                botToken: '',
+                chatId: ''
+            }, null, 2));
+        }
     } catch (error) {
-        console.error('Error creating config directory:', error);
+        console.error('Error in ensureConfigDir:', error);
         throw error;
     }
 }
