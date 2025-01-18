@@ -59,11 +59,20 @@ install_web_ui() {
     SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
     PROJECT_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
     
+    # 清理并创建前端目录
+    rm -rf "$PANEL_DIR/frontend"
+    mkdir -p "$PANEL_DIR/frontend"
+    
     # 复制项目文件到安装目录
     cp -r "$PROJECT_ROOT/app" "$PANEL_DIR/frontend/"
     cp -r "$PROJECT_ROOT/package.json" "$PANEL_DIR/frontend/"
     cp -r "$PROJECT_ROOT/tsconfig.json" "$PANEL_DIR/frontend/"
     cp -r "$PROJECT_ROOT/next.config.js" "$PANEL_DIR/frontend/"
+    
+    # 确保配置目录存在并设置正确的权限
+    mkdir -p "$INSTALL_DIR/config"
+    chown -R $SUDO_USER:$SUDO_USER "$INSTALL_DIR"
+    chmod -R 755 "$INSTALL_DIR"
 
     # 进入前端目录
     cd "$PANEL_DIR/frontend"
@@ -74,7 +83,7 @@ install_web_ui() {
 
     # 构建应用
     echo -e "${GREEN}构建应用...${NC}"
-    "$PANEL_DIR/frontend/node_modules/.bin/next" build
+    npx next build
 }
 
 # 安装后端服务
