@@ -243,29 +243,111 @@ export default function AdminApp() {
 }
 EOF
 
-    # 创建 ServiceList 组件
-    mkdir -p app/components/services
-    cat > app/components/services/ServiceList.tsx << EOF
-import React from 'react';
-import {
-    List,
-    Datagrid,
-    TextField,
-    BooleanField,
-    DateField,
-} from 'react-admin';
+    # 创建 NginxMonitor 组件
+    mkdir -p app/components/monitoring/nginx
+    cat > app/components/monitoring/nginx/NginxMonitor.tsx << EOF
+'use client';
 
-export const ServiceList = () => (
-    <List>
-        <Datagrid>
-            <TextField source="id" />
-            <TextField source="name" />
-            <TextField source="status" />
-            <BooleanField source="isRunning" />
-            <DateField source="lastCheck" />
-        </Datagrid>
-    </List>
-);
+import React from 'react';
+import { Box, Typography, Paper, CircularProgress } from '@mui/material';
+import { useServiceMonitor } from '../../../hooks/useServiceMonitor';
+import type { ServiceStatus } from '../../../types/monitoring';
+
+export default function NginxMonitor() {
+  const { status, loading, error } = useServiceMonitor('nginx');
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" p={3}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Paper sx={{ p: 3, bgcolor: '#ffebee' }}>
+        <Typography color="error">
+          错误：{error}
+        </Typography>
+      </Paper>
+    );
+  }
+
+  const isActive = status?.isRunning ?? false;
+
+  return (
+    <Paper sx={{ p: 3, bgcolor: isActive ? '#e8f5e9' : '#ffebee' }}>
+      <Typography variant="h5" gutterBottom>
+        Nginx 状态
+      </Typography>
+      <Typography>
+        当前状态：
+        <Box component="span" sx={{ color: isActive ? 'success.main' : 'error.main', fontWeight: 'bold' }}>
+          {isActive ? '运行中' : '已停止'}
+        </Box>
+      </Typography>
+    </Paper>
+  );
+}
+EOF
+
+    # 创建 hooks 目录和 useServiceMonitor hook
+    mkdir -p app/hooks
+    cat > app/hooks/useServiceMonitor.ts << EOF
+'use client';
+
+import { useState, useEffect } from 'react';
+import type { ServiceStatus } from '../types/monitoring';
+
+export function useServiceMonitor(serviceName: string) {
+  const [status, setStatus] = useState<ServiceStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      try {
+        const response = await fetch(\`/api/services/\${serviceName}/status\`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch status');
+        }
+        const data = await response.json();
+        setStatus(data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 1000);
+    return () => clearInterval(interval);
+  }, [serviceName]);
+
+  return { status, loading, error };
+}
+EOF
+
+    # 创建 types 目录和监控类型定义
+    mkdir -p app/types
+    cat > app/types/monitoring.ts << EOF
+export interface ServiceStatus {
+  isRunning: boolean;
+  metrics: {
+    status: string;
+    lastStatus: string | null;
+    statusChanged: boolean;
+    timestamp: string;
+  };
+}
+
+export interface ServiceError {
+  error: string;
+  details?: unknown;
+}
 EOF
 
     # 安装依赖
@@ -608,112 +690,5 @@ main() {
             ;;
     esac
 }
-
-# 创建 NginxMonitor 组件
-mkdir -p app/components/monitoring/nginx
-cat > app/components/monitoring/nginx/NginxMonitor.tsx << EOF
-'use client';
-
-import React from 'react';
-import { Box, Typography, Paper, CircularProgress } from '@mui/material';
-import { useServiceMonitor } from '@/hooks/useServiceMonitor';
-import type { ServiceStatus } from '@/types/monitoring';
-
-export default function NginxMonitor() {
-  const { status, loading, error } = useServiceMonitor('nginx');
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" p={3}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Paper sx={{ p: 3, bgcolor: '#ffebee' }}>
-        <Typography color="error">
-          错误：{error}
-        </Typography>
-      </Paper>
-    );
-  }
-
-  const isActive = status?.isRunning ?? false;
-
-  return (
-    <Paper sx={{ p: 3, bgcolor: isActive ? '#e8f5e9' : '#ffebee' }}>
-      <Typography variant="h5" gutterBottom>
-        Nginx 状态
-      </Typography>
-      <Typography>
-        当前状态：
-        <Box component="span" sx={{ color: isActive ? 'success.main' : 'error.main', fontWeight: 'bold' }}>
-          {isActive ? '运行中' : '已停止'}
-        </Box>
-      </Typography>
-    </Paper>
-  );
-}
-EOF
-
-# 创建 hooks 目录和 useServiceMonitor hook
-mkdir -p app/hooks
-cat > app/hooks/useServiceMonitor.ts << EOF
-'use client';
-
-import { useState, useEffect } from 'react';
-import type { ServiceStatus } from '@/types/monitoring';
-
-export function useServiceMonitor(serviceName: string) {
-  const [status, setStatus] = useState<ServiceStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchStatus = async () => {
-      try {
-        const response = await fetch(\`/api/services/\${serviceName}/status\`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch status');
-        }
-        const data = await response.json();
-        setStatus(data);
-        setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStatus();
-    const interval = setInterval(fetchStatus, 1000);
-    return () => clearInterval(interval);
-  }, [serviceName]);
-
-  return { status, loading, error };
-}
-EOF
-
-# 创建 types 目录和监控类型定义
-mkdir -p app/types
-cat > app/types/monitoring.ts << EOF
-export interface ServiceStatus {
-  isRunning: boolean;
-  metrics: {
-    status: string;
-    lastStatus: string | null;
-    statusChanged: boolean;
-    timestamp: string;
-  };
-}
-
-export interface ServiceError {
-  error: string;
-  details?: unknown;
-}
-EOF
 
 main "$@"
