@@ -1,11 +1,11 @@
 {
   "name": "lemp-manager-frontend",
-  "version": "1.2.6",
+  "version": "1.2.7",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 3001",
-    "build": "next build",
-    "start": "next start -p 3001"
+    "dev": "npx next dev -p 3001",
+    "build": "npx next build",
+    "start": "npx next start -p 3001"
   },
   "dependencies": {
     "next": "13.5.6",
