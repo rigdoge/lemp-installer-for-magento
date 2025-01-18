@@ -108,6 +108,9 @@ export default function PrometheusConfig() {
 
       <Grid container spacing={3}>
         <Grid item xs={12}>
+          <Typography variant="subtitle1" gutterBottom>
+            Prometheus 配置
+          </Typography>
           <FormControlLabel
             control={
               <Switch
@@ -130,7 +133,7 @@ export default function PrometheusConfig() {
             <Grid item xs={12} md={6}>
               <TextField
                 fullWidth
-                label="服务端口"
+                label="Prometheus 端口"
                 type="number"
                 value={config.prometheus?.port ?? 9090}
                 onChange={(e) => setConfig({
@@ -176,8 +179,8 @@ export default function PrometheusConfig() {
             </Grid>
 
             <Grid item xs={12}>
-              <Typography variant="subtitle1" gutterBottom>
-                启用的 Exporters
+              <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                Exporters 配置
               </Typography>
               <Grid container spacing={2}>
                 <Grid item xs={6} md={3}>
@@ -225,6 +228,109 @@ export default function PrometheusConfig() {
                   />
                 </Grid>
               </Grid>
+            </Grid>
+          </>
+        )}
+
+        <Grid item xs={12} sx={{ mt: 3 }}>
+          <Typography variant="subtitle1" gutterBottom>
+            Alertmanager 配置
+          </Typography>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={config.alertmanager?.enabled ?? false}
+                onChange={(e) => setConfig({
+                  ...config,
+                  alertmanager: {
+                    ...config.alertmanager!,
+                    enabled: e.target.checked,
+                  },
+                })}
+              />
+            }
+            label="启用 Alertmanager 告警"
+          />
+        </Grid>
+
+        {config.alertmanager?.enabled && (
+          <>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Alertmanager 端口"
+                type="number"
+                value={config.alertmanager?.port ?? 9093}
+                onChange={(e) => setConfig({
+                  ...config,
+                  alertmanager: {
+                    ...config.alertmanager!,
+                    port: parseInt(e.target.value),
+                  },
+                })}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                告警通知方式
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={6} md={3}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={config.alertmanager?.receivers?.telegram ?? false}
+                        onChange={(e) => setConfig({
+                          ...config,
+                          alertmanager: {
+                            ...config.alertmanager!,
+                            receivers: {
+                              ...config.alertmanager!.receivers,
+                              telegram: e.target.checked,
+                            },
+                          },
+                        })}
+                      />
+                    }
+                    label="Telegram 通知"
+                  />
+                </Grid>
+                <Grid item xs={6} md={3}>
+                  <FormControlLabel
+                    control={
+                      <Switch
+                        checked={config.alertmanager?.receivers?.email ?? false}
+                        onChange={(e) => setConfig({
+                          ...config,
+                          alertmanager: {
+                            ...config.alertmanager!,
+                            receivers: {
+                              ...config.alertmanager!.receivers,
+                              email: e.target.checked,
+                            },
+                          },
+                        })}
+                      />
+                    }
+                    label="邮件通知"
+                  />
+                </Grid>
+              </Grid>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="body2" color="textSecondary" sx={{ mt: 2 }}>
+                告警规则配置：
+                <br />
+                • 服务状态告警：当服务停止运行时触发
+                <br />
+                • 性能告警：当系统负载过高或响应时间异常时触发
+                <br />
+                • 错误率告警：当错误率超过阈值时触发
+                <br />
+                • 资源告警：当系统资源（CPU、内存、磁盘）使用率过高时触发
+              </Typography>
             </Grid>
           </>
         )}
