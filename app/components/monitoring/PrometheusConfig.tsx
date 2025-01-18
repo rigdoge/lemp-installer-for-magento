@@ -69,8 +69,8 @@ export default function PrometheusConfig() {
     }
   };
 
-  const handleExporterToggle = (exporter: keyof MonitoringConfig['prometheus']['exporters']) => {
-    if (!config?.prometheus) return;
+  const handleExporterToggle = (exporter: 'nginx' | 'mysql' | 'redis' | 'node') => {
+    if (!config?.prometheus?.exporters) return;
     
     setConfig({
       ...config,
@@ -184,7 +184,7 @@ export default function PrometheusConfig() {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={config.prometheus?.exporters.nginx ?? false}
+                        checked={config.prometheus?.exporters?.nginx ?? false}
                         onChange={() => handleExporterToggle('nginx')}
                       />
                     }
@@ -195,7 +195,7 @@ export default function PrometheusConfig() {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={config.prometheus?.exporters.mysql ?? false}
+                        checked={config.prometheus?.exporters?.mysql ?? false}
                         onChange={() => handleExporterToggle('mysql')}
                       />
                     }
@@ -206,7 +206,7 @@ export default function PrometheusConfig() {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={config.prometheus?.exporters.redis ?? false}
+                        checked={config.prometheus?.exporters?.redis ?? false}
                         onChange={() => handleExporterToggle('redis')}
                       />
                     }
@@ -217,7 +217,7 @@ export default function PrometheusConfig() {
                   <FormControlLabel
                     control={
                       <Switch
-                        checked={config.prometheus?.exporters.node ?? false}
+                        checked={config.prometheus?.exporters?.node ?? false}
                         onChange={() => handleExporterToggle('node')}
                       />
                     }
