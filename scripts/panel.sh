@@ -70,7 +70,7 @@ install_web_ui() {
 
     # 构建应用
     echo -e "${GREEN}构建应用...${NC}"
-    PATH="$PANEL_DIR/frontend/node_modules/.bin:$PATH" next build
+    "$PANEL_DIR/frontend/node_modules/.bin/next" build
 }
 
 # 安装后端服务
