@@ -8,9 +8,10 @@ const execAsync = promisify(exec);
 export async function GET() {
     try {
         const configPath = '/etc/monitoring/telegram.conf';
-        const { stdout } = await execAsync(`[ -f ${configPath} ] && source ${configPath} && echo "{\\"enabled\\":\\"$ENABLED\\",\\"botToken\\":\\"$BOT_TOKEN\\",\\"chatId\\":\\"$CHAT_ID\\"}" || echo "{\\"enabled\\":false,\\"botToken\\":\\"\\",\\"chatId\\":\\"\\"}"`);
+        const { stdout } = await execAsync(`sudo [ -f ${configPath} ] && sudo sh -c 'source ${configPath} && echo "{\\"enabled\\":\\"$ENABLED\\",\\"botToken\\":\\"$BOT_TOKEN\\",\\"chatId\\":\\"$CHAT_ID\\"}"' || echo "{\\"enabled\\":false,\\"botToken\\":\\"\\",\\"chatId\\":\\"\\"}"`, { shell: '/bin/bash' });
         return NextResponse.json(JSON.parse(stdout));
     } catch (error) {
+        console.error('Error getting Telegram configuration:', error);
         return NextResponse.json({ error: 'Failed to get Telegram configuration' }, { status: 500 });
     }
 }
@@ -31,7 +32,7 @@ export async function POST(request: Request) {
         const command = `sudo /opt/lemp-manager/scripts/monitor.sh update-telegram "${botToken}" "${chatId}" "${enabled}"`;
         console.log('Executing command:', command);
         
-        const { stdout, stderr } = await execAsync(command);
+        const { stdout, stderr } = await execAsync(command, { shell: '/bin/bash' });
         console.log('Command output:', stdout);
         if (stderr) console.error('Command stderr:', stderr);
 
@@ -48,12 +49,12 @@ export async function POST(request: Request) {
 // 测试 Telegram 通知
 export async function PUT(request: Request) {
     try {
-        const { stdout } = await execAsync('curl -s http://localhost/nginx_status');
-        const message = `测试消息\n\nNginx 状态:\n${stdout}`;
+        const { stdout: nginxStatus } = await execAsync('sudo systemctl is-active nginx', { shell: '/bin/bash' });
+        const message = `测试消息\n\nNginx 状态: ${nginxStatus.trim()}`;
         
         // 获取配置
         const configPath = '/etc/monitoring/telegram.conf';
-        const { stdout: config } = await execAsync(`[ -f ${configPath} ] && source ${configPath} && curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" -d "chat_id=$CHAT_ID&text=${encodeURIComponent(message)}"`);
+        const { stdout: config } = await execAsync(`sudo [ -f ${configPath} ] && sudo sh -c 'source ${configPath} && curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" -d "chat_id=$CHAT_ID&text=${encodeURIComponent(message)}"'`, { shell: '/bin/bash' });
         
         return NextResponse.json({ success: true, result: config });
     } catch (error) {
