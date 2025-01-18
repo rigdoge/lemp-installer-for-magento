@@ -31,7 +31,7 @@ export default function NginxMonitor() {
   return (
     <Paper sx={{ p: 3, bgcolor: isActive ? '#e8f5e9' : '#ffebee' }}>
       <Typography variant="h5" gutterBottom>
-        Nginx 状态 v1.2.5
+        Nginx 状态 v1.2.7
       </Typography>
       <Typography>
         当前状态：
