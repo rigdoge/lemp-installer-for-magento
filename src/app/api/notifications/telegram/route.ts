@@ -7,7 +7,7 @@ import path from 'path';
 const execAsync = promisify(exec);
 
 // 配置文件路径
-const CONFIG_FILE = path.join('/home/doge/lemp-installer-for-magento/config', 'telegram.json');
+const CONFIG_FILE = path.join(process.cwd(), 'config', 'telegram.json');
 
 // 确保配置目录存在
 async function ensureConfigDir() {
@@ -22,7 +22,9 @@ async function ensureConfigDir() {
         console.log('Config directory permissions:', {
             mode: stats.mode.toString(8),
             uid: stats.uid,
-            gid: stats.gid
+            gid: stats.gid,
+            path: configDir,
+            cwd: process.cwd()
         });
     } catch (error) {
         console.error('Error creating config directory:', error);
@@ -42,7 +44,15 @@ export async function GET() {
         try {
             const configData = await fs.readFile(CONFIG_FILE, 'utf8');
             console.log('Config loaded:', configData);
-            return NextResponse.json(JSON.parse(configData));
+            const config = JSON.parse(configData);
+            return NextResponse.json({
+                ...config,
+                _debug: {
+                    configPath: CONFIG_FILE,
+                    cwd: process.cwd(),
+                    timestamp: new Date().toISOString()
+                }
+            });
         } catch (error: any) {
             console.log('Error reading config:', error);
             if (error?.code === 'ENOENT') {
@@ -51,7 +61,13 @@ export async function GET() {
                 return NextResponse.json({
                     enabled: false,
                     botToken: '',
-                    chatId: ''
+                    chatId: '',
+                    _debug: {
+                        configPath: CONFIG_FILE,
+                        cwd: process.cwd(),
+                        error: 'Config file not found',
+                        timestamp: new Date().toISOString()
+                    }
                 });
             }
             throw error;
@@ -59,7 +75,15 @@ export async function GET() {
     } catch (error) {
         console.error('Error getting Telegram configuration:', error);
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to get Telegram configuration' },
+            { 
+                error: error instanceof Error ? error.message : 'Failed to get Telegram configuration',
+                _debug: {
+                    configPath: CONFIG_FILE,
+                    cwd: process.cwd(),
+                    error: error instanceof Error ? error.stack : 'Unknown error',
+                    timestamp: new Date().toISOString()
+                }
+            },
             { status: 500 }
         );
     }
@@ -70,6 +94,7 @@ export async function POST(request: Request) {
     try {
         console.log('Updating Telegram configuration...');
         console.log('Config file path:', CONFIG_FILE);
+        console.log('Current working directory:', process.cwd());
         
         const { enabled, botToken, chatId } = await request.json();
         console.log('Received config:', { enabled, botToken: '***', chatId });
@@ -77,7 +102,14 @@ export async function POST(request: Request) {
         if (!botToken || !chatId) {
             console.error('Missing required fields:', { botToken: !!botToken, chatId: !!chatId });
             return NextResponse.json(
-                { error: 'Bot token and chat ID are required' },
+                { 
+                    error: 'Bot token and chat ID are required',
+                    _debug: {
+                        configPath: CONFIG_FILE,
+                        cwd: process.cwd(),
+                        timestamp: new Date().toISOString()
+                    }
+                },
                 { status: 400 }
             );
         }
@@ -93,11 +125,27 @@ export async function POST(request: Request) {
         const savedConfig = await fs.readFile(CONFIG_FILE, 'utf8');
         console.log('Verified saved config:', savedConfig);
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ 
+            success: true,
+            _debug: {
+                configPath: CONFIG_FILE,
+                cwd: process.cwd(),
+                configExists: true,
+                timestamp: new Date().toISOString()
+            }
+        });
     } catch (error) {
         console.error('Error updating Telegram configuration:', error);
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to update Telegram configuration' },
+            { 
+                error: error instanceof Error ? error.message : 'Failed to update Telegram configuration',
+                _debug: {
+                    configPath: CONFIG_FILE,
+                    cwd: process.cwd(),
+                    error: error instanceof Error ? error.stack : 'Unknown error',
+                    timestamp: new Date().toISOString()
+                }
+            },
             { status: 500 }
         );
     }
@@ -108,6 +156,7 @@ export async function PUT(request: Request) {
     try {
         console.log('Testing Telegram notification...');
         console.log('Config file path:', CONFIG_FILE);
+        console.log('Current working directory:', process.cwd());
         
         // 读取配置
         const configData = await fs.readFile(CONFIG_FILE, 'utf8');
@@ -129,11 +178,28 @@ export async function PUT(request: Request) {
         );
         
         console.log('Test message sent:', stdout);
-        return NextResponse.json({ success: true, result: stdout });
+        return NextResponse.json({ 
+            success: true, 
+            result: stdout,
+            _debug: {
+                configPath: CONFIG_FILE,
+                cwd: process.cwd(),
+                nginxStatus: nginxStatus.trim(),
+                timestamp: new Date().toISOString()
+            }
+        });
     } catch (error) {
         console.error('Error sending test message:', error);
         return NextResponse.json(
-            { error: error instanceof Error ? error.message : 'Failed to send test message' },
+            { 
+                error: error instanceof Error ? error.message : 'Failed to send test message',
+                _debug: {
+                    configPath: CONFIG_FILE,
+                    cwd: process.cwd(),
+                    error: error instanceof Error ? error.stack : 'Unknown error',
+                    timestamp: new Date().toISOString()
+                }
+            },
             { status: 500 }
         );
     }
