@@ -57,9 +57,25 @@ async function checkNginxStatus(): Promise<string> {
             const { stdout } = await execAsync('systemctl is-active nginx');
             return stdout.trim();
         } else {
-            // macOS 使用 ps 命令检查
-            const { stdout } = await execAsync('ps aux | grep nginx | grep -v grep');
-            return stdout.includes('nginx') ? 'active' : 'inactive';
+            // macOS 检查 master 和 worker 进程
+            try {
+                const { stdout } = await execAsync('ps aux | grep "[n]ginx"');
+                const lines = stdout.split('\n').filter(Boolean);
+                const hasMaster = lines.some(line => line.includes('nginx: master'));
+                const hasWorker = lines.some(line => line.includes('nginx: worker'));
+                
+                console.log('Nginx processes found:', {
+                    lines,
+                    hasMaster,
+                    hasWorker
+                });
+                
+                // 只有当 master 和至少一个 worker 进程都存在时才认为是活跃的
+                return (hasMaster && hasWorker) ? 'active' : 'inactive';
+            } catch (error) {
+                console.error('Error checking nginx processes:', error);
+                return 'inactive';
+            }
         }
     } catch (error) {
         console.error('Error checking nginx status:', error);
