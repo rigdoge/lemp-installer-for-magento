@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Box, Container, Paper, Tab, Tabs } from '@mui/material';
+import React from 'react';
 import dynamic from 'next/dynamic';
+import { Box, Tab, Tabs } from '@mui/material';
 
+const NginxMonitor = dynamic(() => import('./monitoring/nginx/NginxMonitor'), { ssr: false });
 const PrometheusMonitor = dynamic(() => import('./monitoring/PrometheusMonitor'), { ssr: false });
-const PrometheusConfig = dynamic(() => import('./monitoring/PrometheusConfig'), { ssr: false });
-const TelegramConfig = dynamic(() => import('./notifications/TelegramConfig'), { ssr: false });
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -21,8 +20,8 @@ function TabPanel(props: TabPanelProps) {
     <div
       role="tabpanel"
       hidden={value !== index}
-      id={`tabpanel-${index}`}
-      aria-labelledby={`tab-${index}`}
+      id={`simple-tabpanel-${index}`}
+      aria-labelledby={`simple-tab-${index}`}
       {...other}
     >
       {value === index && (
@@ -37,34 +36,24 @@ function TabPanel(props: TabPanelProps) {
 export default function AdminApp() {
   const [tabValue, setTabValue] = React.useState(0);
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
-      <Paper sx={{ width: '100%', mb: 2 }}>
-        <Tabs
-          value={tabValue}
-          onChange={handleTabChange}
-          aria-label="管理面板"
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
-        >
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+        <Tabs value={tabValue} onChange={handleChange}>
           <Tab label="系统监控" />
           <Tab label="监控配置" />
-          <Tab label="通知配置" />
         </Tabs>
-
-        <TabPanel value={tabValue} index={0}>
-          <PrometheusMonitor />
-        </TabPanel>
-        <TabPanel value={tabValue} index={1}>
-          <PrometheusConfig />
-        </TabPanel>
-        <TabPanel value={tabValue} index={2}>
-          <TelegramConfig />
-        </TabPanel>
-      </Paper>
-    </Container>
+      </Box>
+      <TabPanel value={tabValue} index={0}>
+        <PrometheusMonitor />
+      </TabPanel>
+      <TabPanel value={tabValue} index={1}>
+        <NginxMonitor />
+      </TabPanel>
+    </Box>
   );
 } 
