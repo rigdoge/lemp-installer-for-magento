@@ -3,7 +3,7 @@ module.exports = {
     name: 'lemp-manager',
     script: 'npm',
     args: 'start',
-    cwd: '/opt/lemp-manager',
+    cwd: '/home/doge/lemp-installer-for-magento',
     env: {
       NODE_ENV: 'production',
       PORT: 3000
