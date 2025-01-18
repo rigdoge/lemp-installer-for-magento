@@ -52,8 +52,10 @@ install_web_ui() {
     echo -e "${GREEN}安装前端 UI...${NC}"
     cd "$PANEL_DIR/frontend"
     
-    # 创建 package.json
-    cat > package.json << EOF
+    # 只在文件不存在时创建
+    if [ ! -f "package.json" ]; then
+        # 创建 package.json
+        cat > package.json << EOF
 {
   "name": "lemp-manager",
   "version": "1.4.0",
@@ -81,9 +83,11 @@ install_web_ui() {
   }
 }
 EOF
+    fi
 
-    # 创建 tsconfig.json
-    cat > tsconfig.json << EOF
+    if [ ! -f "tsconfig.json" ]; then
+        # 创建 tsconfig.json
+        cat > tsconfig.json << EOF
 {
   "compilerOptions": {
     "target": "es5",
@@ -112,9 +116,12 @@ EOF
   "exclude": ["node_modules"]
 }
 EOF
+    fi
 
-    # 创建根布局文件
-    cat > app/layout.tsx << EOF
+    if [ ! -f "app/layout.tsx" ]; then
+        # 创建根布局文件
+        mkdir -p app
+        cat > app/layout.tsx << EOF
 import React from 'react';
 
 export default function RootLayout({
@@ -134,9 +141,11 @@ export default function RootLayout({
   );
 }
 EOF
+    fi
 
-    # 创建 global.css
-    cat > app/globals.css << EOF
+    if [ ! -f "app/globals.css" ]; then
+        # 创建 global.css
+        cat > app/globals.css << EOF
 * {
   box-sizing: border-box;
   padding: 0;
@@ -155,9 +164,11 @@ body {
   color: #fff;
 }
 EOF
+    fi
 
-    # 更新主页面组件
-    cat > app/page.tsx << EOF
+    if [ ! -f "app/page.tsx" ]; then
+        # 更新主页面组件
+        cat > app/page.tsx << EOF
 'use client';
 
 import dynamic from 'next/dynamic';
@@ -172,10 +183,12 @@ export default function Page() {
     return <AdminApp />;
 }
 EOF
+    fi
 
-    # 创建 AdminApp 组件
-    mkdir -p app/components
-    cat > app/components/AdminApp.tsx << EOF
+    if [ ! -f "app/components/AdminApp.tsx" ]; then
+        # 创建 AdminApp 组件
+        mkdir -p app/components
+        cat > app/components/AdminApp.tsx << EOF
 'use client';
 
 import React, { useState } from 'react';
@@ -242,10 +255,12 @@ export default function AdminApp() {
   );
 }
 EOF
+    fi
 
-    # 创建 NginxMonitor 组件
-    mkdir -p app/components/monitoring/nginx
-    cat > app/components/monitoring/nginx/NginxMonitor.tsx << EOF
+    if [ ! -f "app/components/monitoring/nginx/NginxMonitor.tsx" ]; then
+        # 创建 NginxMonitor 组件
+        mkdir -p app/components/monitoring/nginx
+        cat > app/components/monitoring/nginx/NginxMonitor.tsx << EOF
 'use client';
 
 import React from 'react';
@@ -291,10 +306,12 @@ export default function NginxMonitor() {
   );
 }
 EOF
+    fi
 
-    # 创建 TelegramConfig 组件
-    mkdir -p app/components/notifications
-    cat > app/components/notifications/TelegramConfig.tsx << EOF
+    if [ ! -f "app/components/notifications/TelegramConfig.tsx" ]; then
+        # 创建 TelegramConfig 组件
+        mkdir -p app/components/notifications
+        cat > app/components/notifications/TelegramConfig.tsx << EOF
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -449,10 +466,12 @@ export default function TelegramConfig() {
   );
 }
 EOF
+    fi
 
-    # 创建 hooks 目录和 useServiceMonitor hook
-    mkdir -p app/hooks
-    cat > app/hooks/useServiceMonitor.ts << EOF
+    if [ ! -f "app/hooks/useServiceMonitor.ts" ]; then
+        # 创建 hooks 目录和 useServiceMonitor hook
+        mkdir -p app/hooks
+        cat > app/hooks/useServiceMonitor.ts << EOF
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -488,10 +507,12 @@ export function useServiceMonitor(serviceName: string) {
   return { status, loading, error };
 }
 EOF
+    fi
 
-    # 创建 types 目录和监控类型定义
-    mkdir -p app/types
-    cat > app/types/monitoring.ts << EOF
+    if [ ! -f "app/types/monitoring.ts" ]; then
+        # 创建 types 目录和监控类型定义
+        mkdir -p app/types
+        cat > app/types/monitoring.ts << EOF
 export interface ServiceStatus {
   isRunning: boolean;
   metrics: {
@@ -507,6 +528,7 @@ export interface ServiceError {
   details?: unknown;
 }
 EOF
+    fi
 
     # 安装依赖
     echo -e "${GREEN}安装 Node.js 依赖...${NC}"
