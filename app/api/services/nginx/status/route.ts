@@ -18,11 +18,9 @@ async function getLastStatus(): Promise<string | null> {
             const status = JSON.parse(data);
             return status.lastStatus;
         } catch (error) {
-            // 如果文件不存在，返回 null
-            if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
-                return null;
-            }
-            throw error;
+            // 如果文件不存在或解析失败，返回 null
+            console.log('No previous status found or parse error:', error);
+            return null;
         }
     } catch (error) {
         console.error('Error reading last status:', error);
@@ -39,12 +37,11 @@ async function saveStatus(status: string) {
             timestamp: new Date().toISOString()
         }, null, 2);
         
-        // 使用同步写入确保文件写入完成
         await fs.writeFile(STATUS_FILE, data, { encoding: 'utf8', mode: 0o666 });
         console.log('Status saved:', data);
     } catch (error) {
         console.error('Error saving status:', error);
-        throw error; // 抛出错误以便上层处理
+        throw error;
     }
 }
 
@@ -52,9 +49,14 @@ async function saveStatus(status: string) {
 async function checkNginxStatus(): Promise<string> {
     try {
         const { stdout } = await execAsync('systemctl is-active nginx', { shell: '/bin/bash' });
-        return stdout.trim();
+        const status = stdout.trim();
+        console.log('Raw nginx status:', status);
+        return status;
     } catch (error) {
         console.error('Error executing systemctl:', error);
+        if (error instanceof Error) {
+            console.error('Error details:', error.message);
+        }
         return 'failed';
     }
 }
@@ -75,7 +77,10 @@ export async function GET() {
         console.log('Current status:', currentStatus);
         
         // 检查状态是否发生变化
-        if (lastStatus !== currentStatus) {
+        const statusChanged = lastStatus !== null && lastStatus !== currentStatus;
+        console.log('Status changed?', statusChanged);
+        
+        if (statusChanged) {
             console.log('Status changed from', lastStatus, 'to', currentStatus);
             
             // 发送状态变化通知
@@ -84,16 +89,17 @@ export async function GET() {
             } else {
                 await sendTelegramMessage('❌ Nginx 已停止运行');
             }
-            
-            // 保存新状态
-            await saveStatus(currentStatus);
         }
+        
+        // 总是保存当前状态
+        await saveStatus(currentStatus);
         
         return NextResponse.json({
             isRunning: currentStatus === 'active',
             metrics: {
                 status: currentStatus,
                 lastStatus,
+                statusChanged,
                 timestamp: new Date().toISOString()
             }
         });
