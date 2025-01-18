@@ -51,4 +51,24 @@ export interface MonitoringConfig {
         errorRate: number;    // 错误率告警阈值（百分比）
         responseTime: number; // 响应时间告警阈值（毫秒）
     };
+    prometheus?: {
+        enabled: boolean;    // 是否启用 Prometheus
+        port: number;       // Prometheus 服务端口
+        retention: string;  // 数据保留时间
+        scrapeInterval: string; // 采集间隔
+        exporters: {
+            nginx: boolean;  // Nginx Exporter
+            mysql: boolean;  // MySQL Exporter
+            redis: boolean;  // Redis Exporter
+            node: boolean;   // Node Exporter
+        };
+    };
+    alertmanager?: {
+        enabled: boolean;   // 是否启用 Alertmanager
+        port: number;      // Alertmanager 服务端口
+        receivers: {
+            telegram: boolean; // Telegram 通知
+            email: boolean;    // 邮件通知
+        };
+    };
 } 

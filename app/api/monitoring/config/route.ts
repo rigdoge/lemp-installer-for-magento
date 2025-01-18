@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
-import type { MonitoringConfig } from '@/types/monitoring';
+import type { MonitoringConfig } from '../../../types/monitoring';
 
 const CONFIG_FILE = path.join('/home/doge/lemp-installer-for-magento/config', 'monitoring.json');
 
@@ -28,6 +28,26 @@ const DEFAULT_CONFIG: MonitoringConfig = {
         errorRate: 5,      // 5%错误率
         responseTime: 500,  // 500ms响应时间
     },
+    prometheus: {
+        enabled: true,     // 默认启用 Prometheus
+        port: 9090,       // 默认端口
+        retention: "15d",  // 默认保留15天数据
+        scrapeInterval: "15s", // 默认15秒采集一次
+        exporters: {
+            nginx: true,   // 默认启用 Nginx Exporter
+            mysql: true,   // 默认启用 MySQL Exporter
+            redis: true,   // 默认启用 Redis Exporter
+            node: true,    // 默认启用 Node Exporter
+        }
+    },
+    alertmanager: {
+        enabled: true,    // 默认启用 Alertmanager
+        port: 9093,      // 默认端口
+        receivers: {
+            telegram: true, // 默认启用 Telegram 通知
+            email: false,   // 默认关闭邮件通知
+        }
+    }
 };
 
 // 确保配置目录存在
