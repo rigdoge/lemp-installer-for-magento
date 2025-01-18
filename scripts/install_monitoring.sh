@@ -117,14 +117,23 @@ route:
   group_wait: 10s
   group_interval: 10s
   repeat_interval: 1h
-  receiver: 'telegram'
+  receiver: 'default'
 
 receivers:
+- name: 'default'
+  webhook_configs:
+  - url: 'http://localhost:9093/debug/webhook'
+
 - name: 'telegram'
   telegram_configs:
-  - bot_token: ''
+  - api_url: 'https://api.telegram.org'
+    bot_token: ''
     chat_id: 0
     parse_mode: 'HTML'
+    message: '{{ template "telegram.default.message" . }}'
+
+templates:
+- '/etc/alertmanager/template/*.tmpl'
 EOL
 
   # 创建 systemd 服务
