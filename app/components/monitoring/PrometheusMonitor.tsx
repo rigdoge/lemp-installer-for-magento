@@ -18,6 +18,15 @@ export default function PrometheusMonitor() {
   const [status, setStatus] = useState<MonitoringStatus>({});
   const [loading, setLoading] = useState(true);
 
+  const getBaseUrl = () => {
+    if (typeof window !== 'undefined') {
+      const protocol = window.location.protocol;
+      const hostname = window.location.hostname;
+      return `${protocol}//${hostname}`;
+    }
+    return '';
+  };
+
   const checkServiceStatus = async () => {
     try {
       const response = await fetch('/api/monitoring/status');
@@ -35,13 +44,14 @@ export default function PrometheusMonitor() {
 
   useEffect(() => {
     checkServiceStatus();
-    const interval = setInterval(checkServiceStatus, 10000); // 每10秒检查一次
+    const interval = setInterval(checkServiceStatus, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  const prometheusUrl = process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090';
-  const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3000';
-  const alertmanagerUrl = process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093';
+  const baseUrl = getBaseUrl();
+  const prometheusUrl = process.env.NEXT_PUBLIC_PROMETHEUS_URL || `${baseUrl}:9090`;
+  const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || `${baseUrl}:3000`;
+  const alertmanagerUrl = process.env.NEXT_PUBLIC_ALERTMANAGER_URL || `${baseUrl}:9093`;
 
   if (loading) {
     return (

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 
 async function checkEndpoint(url: string): Promise<boolean> {
   try {
@@ -14,9 +15,14 @@ async function checkEndpoint(url: string): Promise<boolean> {
 
 export async function GET() {
   try {
-    const prometheusUrl = process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090';
-    const alertmanagerUrl = process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093';
-    const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3000';
+    const headersList = headers();
+    const protocol = headersList.get('x-forwarded-proto') || 'http';
+    const host = headersList.get('host') || 'localhost';
+    const baseUrl = `${protocol}://${host.split(':')[0]}`;
+
+    const prometheusUrl = process.env.NEXT_PUBLIC_PROMETHEUS_URL || `${baseUrl}:9090`;
+    const alertmanagerUrl = process.env.NEXT_PUBLIC_ALERTMANAGER_URL || `${baseUrl}:9093`;
+    const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || `${baseUrl}:3000`;
 
     const [prometheusRunning, alertmanagerRunning, grafanaRunning] = await Promise.all([
       checkEndpoint(`${prometheusUrl}/-/healthy`),
