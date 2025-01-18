@@ -324,18 +324,52 @@ update_telegram() {
         exit 1
     fi
     
+    echo -e "${GREEN}正在更新 Telegram 配置...${NC}"
+    echo "Bot Token: $2"
+    echo "Chat ID: $3"
+    echo "Enabled: $4"
+    
     # 保存配置到文件
     mkdir -p "$CONFIG_DIR"
+    if [ ! -d "$CONFIG_DIR" ]; then
+        echo -e "${RED}创建配置目录失败: $CONFIG_DIR${NC}"
+        exit 1
+    fi
+    
+    # 检查文件权限
+    touch "$CONFIG_DIR/telegram.conf"
+    if [ ! -w "$CONFIG_DIR/telegram.conf" ]; then
+        echo -e "${RED}无法写入配置文件: $CONFIG_DIR/telegram.conf${NC}"
+        exit 1
+    }
+    
+    # 保存配置
     cat > "$CONFIG_DIR/telegram.conf" << EOF
 ENABLED="$4"
 BOT_TOKEN="$2"
 CHAT_ID="$3"
 EOF
     
+    # 验证配置文件是否正确写入
+    if [ ! -f "$CONFIG_DIR/telegram.conf" ]; then
+        echo -e "${RED}配置文件未成功创建${NC}"
+        exit 1
+    fi
+    
+    # 检查配置文件内容
+    echo -e "${GREEN}配置文件内容:${NC}"
+    cat "$CONFIG_DIR/telegram.conf"
+    
+    # 设置正确的权限
+    chown root:root "$CONFIG_DIR/telegram.conf"
+    chmod 644 "$CONFIG_DIR/telegram.conf"
+    
     # 应用配置
     configure_telegram
     
     echo -e "${GREEN}Telegram 配置已更新${NC}"
+    echo -e "配置文件位置: $CONFIG_DIR/telegram.conf"
+    echo -e "请检查 Alertmanager 配置是否已更新"
 }
 
 # 主函数
