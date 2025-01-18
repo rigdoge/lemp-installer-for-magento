@@ -57,8 +57,8 @@ install_web_ui() {
         # 创建 package.json
         cat > package.json << EOF
 {
-  "name": "lemp-manager",
-  "version": "1.4.0",
+  "name": "lemp-manager-frontend",
+  "version": "1.2.7",
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
@@ -69,17 +69,16 @@ install_web_ui() {
     "next": "14.0.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "react-admin": "^4.16.0",
-    "ra-data-simple-rest": "^4.16.0",
-    "@mui/material": "^5.15.0",
-    "@mui/icons-material": "^5.15.0",
-    "@emotion/react": "^11.11.0",
+    "@mui/material": "^5.15.3",
+    "@mui/icons-material": "^5.15.3",
+    "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "@types/react": "^18.2.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^20.10.6",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "typescript": "^5.3.3"
   }
 }
 EOF
