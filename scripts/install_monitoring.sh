@@ -33,12 +33,13 @@ create_directories() {
 install_prometheus() {
   echo "正在安装 Prometheus..."
   
-  # 下载最新版本的 Prometheus
-  PROMETHEUS_VERSION=$(curl -s https://api.github.com/repos/prometheus/prometheus/releases/latest | grep tag_name | cut -d '"' -f 4)
-  wget "https://github.com/prometheus/prometheus/releases/download/${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION#v}.linux-amd64.tar.gz"
-  tar xzf "prometheus-${PROMETHEUS_VERSION#v}.linux-amd64.tar.gz"
-  cp "prometheus-${PROMETHEUS_VERSION#v}.linux-amd64/prometheus" /usr/local/bin/
-  cp "prometheus-${PROMETHEUS_VERSION#v}.linux-amd64/promtool" /usr/local/bin/
+  # 使用稳定版本的 Prometheus，并指定 ARM64 架构
+  PROMETHEUS_VERSION="2.45.0"
+  ARCH="arm64"
+  wget "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.darwin-${ARCH}.tar.gz"
+  tar xzf "prometheus-${PROMETHEUS_VERSION}.darwin-${ARCH}.tar.gz"
+  cp "prometheus-${PROMETHEUS_VERSION}.darwin-${ARCH}/prometheus" /usr/local/bin/
+  cp "prometheus-${PROMETHEUS_VERSION}.darwin-${ARCH}/promtool" /usr/local/bin/
   
   # 创建 Prometheus 配置文件
   cat > "$CONFIG_DIR/prometheus.yml" << EOL
@@ -75,16 +76,19 @@ ExecStart=/usr/local/bin/prometheus \
     --config.file=$CONFIG_DIR/prometheus.yml \
     --storage.tsdb.path=$DATA_DIR/prometheus \
     --web.console.templates=/etc/prometheus/consoles \
-    --web.console.libraries=/etc/prometheus/console_libraries
+    --web.console.libraries=/etc/prometheus/console_libraries \
+    --web.listen-address=:9090
 
 [Install]
 WantedBy=multi-user.target
 EOL
 
   # 创建用户和组
-  useradd --no-create-home --shell /bin/false prometheus
+  useradd --no-create-home --shell /bin/false prometheus || true
   chown -R prometheus:prometheus "$DATA_DIR/prometheus"
   chown -R prometheus:prometheus "$CONFIG_DIR"
+  chmod 755 /usr/local/bin/prometheus
+  chmod 755 /usr/local/bin/promtool
   
   # 启动服务
   systemctl daemon-reload
@@ -96,11 +100,12 @@ EOL
 install_alertmanager() {
   echo "正在安装 Alertmanager..."
   
-  # 下载最新版本的 Alertmanager
-  ALERTMANAGER_VERSION=$(curl -s https://api.github.com/repos/prometheus/alertmanager/releases/latest | grep tag_name | cut -d '"' -f 4)
-  wget "https://github.com/prometheus/alertmanager/releases/download/${ALERTMANAGER_VERSION}/alertmanager-${ALERTMANAGER_VERSION#v}.linux-amd64.tar.gz"
-  tar xzf "alertmanager-${ALERTMANAGER_VERSION#v}.linux-amd64.tar.gz"
-  cp "alertmanager-${ALERTMANAGER_VERSION#v}.linux-amd64/alertmanager" /usr/local/bin/
+  # 使用稳定版本的 Alertmanager，并指定 ARM64 架构
+  ALERTMANAGER_VERSION="0.26.0"
+  ARCH="arm64"
+  wget "https://github.com/prometheus/alertmanager/releases/download/v${ALERTMANAGER_VERSION}/alertmanager-${ALERTMANAGER_VERSION}.darwin-${ARCH}.tar.gz"
+  tar xzf "alertmanager-${ALERTMANAGER_VERSION}.darwin-${ARCH}.tar.gz"
+  cp "alertmanager-${ALERTMANAGER_VERSION}.darwin-${ARCH}/alertmanager" /usr/local/bin/
   
   # 创建 Alertmanager 配置文件
   cat > "$CONFIG_DIR/alertmanager.yml" << EOL
@@ -135,17 +140,19 @@ Group=alertmanager
 Type=simple
 ExecStart=/usr/local/bin/alertmanager \
     --config.file=$CONFIG_DIR/alertmanager.yml \
-    --storage.path=$DATA_DIR/alertmanager
+    --storage.path=$DATA_DIR/alertmanager \
+    --web.listen-address=:9093
 
 [Install]
 WantedBy=multi-user.target
 EOL
 
   # 创建用户和组
-  useradd --no-create-home --shell /bin/false alertmanager
+  useradd --no-create-home --shell /bin/false alertmanager || true
   mkdir -p "$DATA_DIR/alertmanager"
   chown -R alertmanager:alertmanager "$DATA_DIR/alertmanager"
   chown -R alertmanager:alertmanager "$CONFIG_DIR/alertmanager.yml"
+  chmod 755 /usr/local/bin/alertmanager
   
   # 启动服务
   systemctl daemon-reload
@@ -200,11 +207,12 @@ EOL
 install_node_exporter() {
   echo "正在安装 Node Exporter..."
   
-  # 下载最新版本的 Node Exporter
-  NODE_EXPORTER_VERSION=$(curl -s https://api.github.com/repos/prometheus/node_exporter/releases/latest | grep tag_name | cut -d '"' -f 4)
-  wget "https://github.com/prometheus/node_exporter/releases/download/${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION#v}.linux-amd64.tar.gz"
-  tar xzf "node_exporter-${NODE_EXPORTER_VERSION#v}.linux-amd64.tar.gz"
-  cp "node_exporter-${NODE_EXPORTER_VERSION#v}.linux-amd64/node_exporter" /usr/local/bin/
+  # 使用稳定版本的 Node Exporter，并指定 ARM64 架构
+  NODE_EXPORTER_VERSION="1.7.0"
+  ARCH="arm64"
+  wget "https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.darwin-${ARCH}.tar.gz"
+  tar xzf "node_exporter-${NODE_EXPORTER_VERSION}.darwin-${ARCH}.tar.gz"
+  cp "node_exporter-${NODE_EXPORTER_VERSION}.darwin-${ARCH}/node_exporter" /usr/local/bin/
   
   # 创建 systemd 服务
   cat > /etc/systemd/system/node_exporter.service << EOL
@@ -217,14 +225,16 @@ After=network-online.target
 User=node_exporter
 Group=node_exporter
 Type=simple
-ExecStart=/usr/local/bin/node_exporter
+ExecStart=/usr/local/bin/node_exporter \
+    --web.listen-address=:9100
 
 [Install]
 WantedBy=multi-user.target
 EOL
 
   # 创建用户和组
-  useradd --no-create-home --shell /bin/false node_exporter
+  useradd --no-create-home --shell /bin/false node_exporter || true
+  chmod 755 /usr/local/bin/node_exporter
   
   # 启动服务
   systemctl daemon-reload
