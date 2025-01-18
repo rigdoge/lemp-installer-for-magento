@@ -60,7 +60,214 @@ install_web_ui() {
 # 安装后端服务
 install_backend() {
     echo -e "${GREEN}安装后端服务...${NC}"
+    
+    # 创建后端目录
+    mkdir -p "$PANEL_DIR/backend/src/modules/services"
+    mkdir -p "$PANEL_DIR/backend/src/modules/system"
+    mkdir -p "$PANEL_DIR/backend/src/core"
+    mkdir -p "$PANEL_DIR/backend/src/config"
+    
     cd "$PANEL_DIR/backend"
+
+    # 创建后端 package.json
+    cat > package.json << EOF
+{
+  "name": "lemp-manager-backend",
+  "version": "1.2.7",
+  "private": true,
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "express-ws": "^5.0.2",
+    "cors": "^2.8.5",
+    "winston": "^3.11.0",
+    "systeminformation": "^5.21.22"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  }
+}
+EOF
+
+    # 创建主服务器文件
+    cat > src/server.js << EOF
+const express = require('express');
+const cors = require('cors');
+const expressWs = require('express-ws');
+const { setupLogger } = require('./core/logger');
+const { setupRoutes } = require('./core/routes');
+const config = require('./config');
+
+const app = express();
+expressWs(app);
+
+// 设置日志
+const logger = setupLogger();
+
+// 中间件
+app.use(cors());
+app.use(express.json());
+
+// 请求日志
+app.use((req, res, next) => {
+    logger.info(\`\${req.method} \${req.url}\`);
+    next();
+});
+
+// 设置路由
+setupRoutes(app);
+
+// 错误处理
+app.use((err, req, res, next) => {
+    logger.error(err.stack);
+    res.status(500).json({ error: 'Internal Server Error' });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+    logger.info(\`Backend server running on port \${PORT}\`);
+});
+EOF
+
+    # 创建日志模块
+    cat > src/core/logger.js << EOF
+const winston = require('winston');
+const path = require('path');
+
+function setupLogger() {
+    return winston.createLogger({
+        level: 'info',
+        format: winston.format.combine(
+            winston.format.timestamp(),
+            winston.format.json()
+        ),
+        transports: [
+            new winston.transports.File({ 
+                filename: path.join(process.env.LOG_DIR || 'logs', 'error.log'), 
+                level: 'error' 
+            }),
+            new winston.transports.File({ 
+                filename: path.join(process.env.LOG_DIR || 'logs', 'combined.log')
+            }),
+            new winston.transports.Console({
+                format: winston.format.combine(
+                    winston.format.colorize(),
+                    winston.format.simple()
+                )
+            })
+        ]
+    });
+}
+
+module.exports = { setupLogger };
+EOF
+
+    # 创建路由设置模块
+    cat > src/core/routes.js << EOF
+const servicesRouter = require('../modules/services/router');
+const systemRouter = require('../modules/system/router');
+
+function setupRoutes(app) {
+    app.use('/api/services', servicesRouter);
+    app.use('/api/system', systemRouter);
+}
+
+module.exports = { setupRoutes };
+EOF
+
+    # 创建配置模块
+    cat > src/config/index.js << EOF
+module.exports = {
+    services: {
+        nginx: {
+            name: 'Nginx',
+            configPath: '/etc/nginx/nginx.conf',
+            logPath: '/var/log/nginx/error.log'
+        },
+        php: {
+            name: 'PHP-FPM',
+            configPath: '/etc/php/8.1/fpm/php.ini',
+            logPath: '/var/log/php8.1-fpm.log'
+        },
+        mysql: {
+            name: 'Percona Server',
+            configPath: '/etc/mysql/my.cnf',
+            logPath: '/var/log/mysql/error.log'
+        }
+    }
+};
+EOF
+
+    # 创建服务模块路由
+    cat > src/modules/services/router.js << EOF
+const express = require('express');
+const router = express.Router();
+const { getServices, getServiceStatus, controlService } = require('./controller');
+
+router.get('/', getServices);
+router.get('/:id/status', getServiceStatus);
+router.post('/:id/control', controlService);
+
+module.exports = router;
+EOF
+
+    # 创建服务模块控制器
+    cat > src/modules/services/controller.js << EOF
+const { exec } = require('child_process');
+const util = require('util');
+const config = require('../../config');
+
+const execAsync = util.promisify(exec);
+
+async function getServices(req, res) {
+    try {
+        const services = Object.entries(config.services).map(([id, service]) => ({
+            id,
+            ...service
+        }));
+        res.json(services);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function getServiceStatus(req, res) {
+    try {
+        const { id } = req.params;
+        const { stdout } = await execAsync(\`systemctl status \${id}\`);
+        const isActive = stdout.includes('active (running)');
+        res.json({ id, status: isActive ? 'running' : 'stopped' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+async function controlService(req, res) {
+    try {
+        const { id } = req.params;
+        const { action } = req.body;
+        
+        if (!['start', 'stop', 'restart'].includes(action)) {
+            return res.status(400).json({ error: 'Invalid action' });
+        }
+
+        await execAsync(\`systemctl \${action} \${id}\`);
+        res.json({ message: \`Service \${id} \${action}ed successfully\` });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+}
+
+module.exports = {
+    getServices,
+    getServiceStatus,
+    controlService
+};
+EOF
 
     # 安装依赖
     echo -e "${GREEN}安装后端依赖...${NC}"

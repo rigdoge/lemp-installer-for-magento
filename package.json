@@ -3,12 +3,9 @@
   "version": "1.2.7",
   "private": true,
   "scripts": {
-    "dev": "sudo npm run next:dev",
-    "build": "sudo npm run next:build",
-    "start": "sudo npm run next:start",
-    "next:dev": "npx next dev -p 3001",
-    "next:build": "npx next build",
-    "next:start": "npx next start -p 3001"
+    "dev": "npx next dev -p 3001",
+    "build": "npx next build",
+    "start": "npx next start -p 3001"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",
