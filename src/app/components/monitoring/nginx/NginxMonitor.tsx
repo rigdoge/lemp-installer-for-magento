@@ -5,7 +5,7 @@ import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import { useServiceMonitor } from '@/hooks/useServiceMonitor';
 
 export default function NginxMonitor() {
-  const { status, isLoading: loading, error } = useServiceMonitor('nginx');
+  const { status, loading, error } = useServiceMonitor('nginx');
 
   if (loading) {
     return (
