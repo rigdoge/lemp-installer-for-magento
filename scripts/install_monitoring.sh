@@ -33,13 +33,13 @@ create_directories() {
 install_prometheus() {
   echo "正在安装 Prometheus..."
   
-  # 使用稳定版本的 Prometheus，并指定 ARM64 架构
+  # 使用稳定版本的 Prometheus，并指定 Linux ARM64 架构
   PROMETHEUS_VERSION="2.45.0"
   ARCH="arm64"
-  wget "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.darwin-${ARCH}.tar.gz"
-  tar xzf "prometheus-${PROMETHEUS_VERSION}.darwin-${ARCH}.tar.gz"
-  cp "prometheus-${PROMETHEUS_VERSION}.darwin-${ARCH}/prometheus" /usr/local/bin/
-  cp "prometheus-${PROMETHEUS_VERSION}.darwin-${ARCH}/promtool" /usr/local/bin/
+  wget "https://github.com/prometheus/prometheus/releases/download/v${PROMETHEUS_VERSION}/prometheus-${PROMETHEUS_VERSION}.linux-${ARCH}.tar.gz"
+  tar xzf "prometheus-${PROMETHEUS_VERSION}.linux-${ARCH}.tar.gz"
+  cp "prometheus-${PROMETHEUS_VERSION}.linux-${ARCH}/prometheus" /usr/local/bin/
+  cp "prometheus-${PROMETHEUS_VERSION}.linux-${ARCH}/promtool" /usr/local/bin/
   
   # 创建 Prometheus 配置文件
   cat > "$CONFIG_DIR/prometheus.yml" << EOL
@@ -100,12 +100,12 @@ EOL
 install_alertmanager() {
   echo "正在安装 Alertmanager..."
   
-  # 使用稳定版本的 Alertmanager，并指定 ARM64 架构
+  # 使用稳定版本的 Alertmanager，并指定 Linux ARM64 架构
   ALERTMANAGER_VERSION="0.26.0"
   ARCH="arm64"
-  wget "https://github.com/prometheus/alertmanager/releases/download/v${ALERTMANAGER_VERSION}/alertmanager-${ALERTMANAGER_VERSION}.darwin-${ARCH}.tar.gz"
-  tar xzf "alertmanager-${ALERTMANAGER_VERSION}.darwin-${ARCH}.tar.gz"
-  cp "alertmanager-${ALERTMANAGER_VERSION}.darwin-${ARCH}/alertmanager" /usr/local/bin/
+  wget "https://github.com/prometheus/alertmanager/releases/download/v${ALERTMANAGER_VERSION}/alertmanager-${ALERTMANAGER_VERSION}.linux-${ARCH}.tar.gz"
+  tar xzf "alertmanager-${ALERTMANAGER_VERSION}.linux-${ARCH}.tar.gz"
+  cp "alertmanager-${ALERTMANAGER_VERSION}.linux-${ARCH}/alertmanager" /usr/local/bin/
   
   # 创建 Alertmanager 配置文件
   cat > "$CONFIG_DIR/alertmanager.yml" << EOL
@@ -207,12 +207,12 @@ EOL
 install_node_exporter() {
   echo "正在安装 Node Exporter..."
   
-  # 使用稳定版本的 Node Exporter，并指定 ARM64 架构
+  # 使用稳定版本的 Node Exporter，并指定 Linux ARM64 架构
   NODE_EXPORTER_VERSION="1.7.0"
   ARCH="arm64"
-  wget "https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.darwin-${ARCH}.tar.gz"
-  tar xzf "node_exporter-${NODE_EXPORTER_VERSION}.darwin-${ARCH}.tar.gz"
-  cp "node_exporter-${NODE_EXPORTER_VERSION}.darwin-${ARCH}/node_exporter" /usr/local/bin/
+  wget "https://github.com/prometheus/node_exporter/releases/download/v${NODE_EXPORTER_VERSION}/node_exporter-${NODE_EXPORTER_VERSION}.linux-${ARCH}.tar.gz"
+  tar xzf "node_exporter-${NODE_EXPORTER_VERSION}.linux-${ARCH}.tar.gz"
+  cp "node_exporter-${NODE_EXPORTER_VERSION}.linux-${ARCH}/node_exporter" /usr/local/bin/
   
   # 创建 systemd 服务
   cat > /etc/systemd/system/node_exporter.service << EOL
