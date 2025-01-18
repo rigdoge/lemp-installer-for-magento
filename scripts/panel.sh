@@ -95,7 +95,7 @@ install_backend() {
     cat > package.json << EOF
 {
   "name": "lemp-manager-backend",
-  "version": "1.4.0",
+  "version": "1.2.7",
   "private": true,
   "main": "src/server.js",
   "scripts": {
@@ -297,47 +297,55 @@ EOF
 }
 
 # 创建系统服务
-create_service() {
+create_services() {
     echo -e "${GREEN}创建系统服务...${NC}"
     
-    # 前端服务
+    # 安装 PM2
+    npm install -g pm2
+    
+    # 创建前端服务
     cat > /etc/systemd/system/lemp-panel-frontend.service << EOF
 [Unit]
-Description=LEMP Stack Manager Panel Frontend
+Description=LEMP Panel Frontend
 After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=$SUDO_USER
 WorkingDirectory=$PANEL_DIR/frontend
 Environment=NODE_ENV=production
-ExecStart=$(which npm) start
+Environment=PORT=3001
+ExecStart=/usr/bin/npm run start
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-    # 后端服务
+    # 创建后端服务
     cat > /etc/systemd/system/lemp-panel-backend.service << EOF
 [Unit]
-Description=LEMP Stack Manager Panel Backend
+Description=LEMP Panel Backend
 After=network.target
 
 [Service]
 Type=simple
-User=$USER
+User=$SUDO_USER
 WorkingDirectory=$PANEL_DIR/backend
 Environment=NODE_ENV=production
-Environment=LOG_DIR=/var/log/lemp-panel
-ExecStart=$(which npm) start
+Environment=PORT=3000
+ExecStart=/usr/bin/pm2 start src/server.js --name lemp-panel-backend
+ExecStop=/usr/bin/pm2 stop lemp-panel-backend
 Restart=always
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
+    # 重新加载 systemd
     systemctl daemon-reload
+    
+    # 启用并启动服务
     systemctl enable lemp-panel-frontend
     systemctl enable lemp-panel-backend
     systemctl start lemp-panel-frontend
@@ -351,7 +359,7 @@ install_panel() {
     install_dependencies
     install_web_ui
     install_backend
-    create_service
+    create_services
     
     echo -e "${GREEN}安装完成!${NC}"
     echo -e "前端面板地址: http://your-server-ip:3001"
