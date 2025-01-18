@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
-import { useServiceMonitor } from '@/hooks/useServiceMonitor';
-import type { ServiceStatus } from '@/types/monitoring';
+import { useServiceMonitor } from '../../../../hooks/useServiceMonitor';
+import type { ServiceStatus } from '../../../../types/monitoring';
 
 export default function NginxMonitor() {
   const { status, loading, error } = useServiceMonitor('nginx');
@@ -31,7 +31,7 @@ export default function NginxMonitor() {
   return (
     <Paper sx={{ p: 3, bgcolor: isActive ? '#e8f5e9' : '#ffebee' }}>
       <Typography variant="h5" gutterBottom>
-        Nginx 状态 v1.2.3
+        Nginx 状态 v1.2.4
       </Typography>
       <Typography>
         当前状态：

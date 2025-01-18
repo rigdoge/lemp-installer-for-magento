@@ -34,17 +34,34 @@ async function getLastStatus(): Promise<string | null> {
 async function saveStatus(status: string) {
     try {
         await fs.mkdir(CONFIG_DIR, { recursive: true });
-        await fs.writeFile(STATUS_FILE, JSON.stringify({ 
+        const data = JSON.stringify({ 
             lastStatus: status,
             timestamp: new Date().toISOString()
-        }));
+        }, null, 2);
+        
+        // 使用同步写入确保文件写入完成
+        await fs.writeFile(STATUS_FILE, data, { encoding: 'utf8', mode: 0o666 });
+        console.log('Status saved:', data);
     } catch (error) {
         console.error('Error saving status:', error);
+        throw error; // 抛出错误以便上层处理
+    }
+}
+
+// 检查 Nginx 状态
+async function checkNginxStatus(): Promise<string> {
+    try {
+        const { stdout } = await execAsync('systemctl is-active nginx', { shell: '/bin/bash' });
+        return stdout.trim();
+    } catch (error) {
+        console.error('Error executing systemctl:', error);
+        return 'failed';
     }
 }
 
 export async function GET() {
     let lastStatus: string | null = null;
+    let currentStatus: string;
     
     try {
         console.log('Checking Nginx status...');
@@ -53,24 +70,24 @@ export async function GET() {
         lastStatus = await getLastStatus();
         console.log('Last status:', lastStatus);
         
-        // 使用 systemctl 检查 Nginx 状态
-        const { stdout } = await execAsync('systemctl is-active nginx', { shell: '/bin/bash' });
-        const currentStatus = stdout.trim();
-        
+        // 检查当前状态
+        currentStatus = await checkNginxStatus();
         console.log('Current status:', currentStatus);
         
         // 检查状态是否发生变化
         if (lastStatus !== currentStatus) {
+            console.log('Status changed from', lastStatus, 'to', currentStatus);
+            
             // 发送状态变化通知
             if (currentStatus === 'active') {
                 await sendTelegramMessage('✅ Nginx 已恢复运行');
-            } else if (currentStatus === 'inactive' || currentStatus === 'failed') {
+            } else {
                 await sendTelegramMessage('❌ Nginx 已停止运行');
             }
+            
+            // 保存新状态
+            await saveStatus(currentStatus);
         }
-        
-        // 保存当前状态
-        await saveStatus(currentStatus);
         
         return NextResponse.json({
             isRunning: currentStatus === 'active',
@@ -81,12 +98,11 @@ export async function GET() {
             }
         });
     } catch (error) {
-        console.error('Error checking Nginx status:', error);
+        console.error('Error in status check:', error);
         
-        // 如果是因为 Nginx 服务不存在而失败，也发送通知
+        // 如果之前是运行状态，现在出错了，发送通知
         if (lastStatus === 'active') {
             await sendTelegramMessage('❌ Nginx 服务异常');
-            // 保存异常状态
             await saveStatus('failed');
         }
         
