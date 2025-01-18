@@ -23,4 +23,5 @@ config/*
 node_modules/
 .next/
 dist/
-build/ 
+build/
+src/ 
