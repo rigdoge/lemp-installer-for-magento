@@ -1,22 +1,12 @@
 import { NextResponse } from 'next/server';
-import { exec } from 'child_process';
-import { promisify } from 'util';
 
-const execAsync = promisify(exec);
-
-async function checkService(service: string): Promise<boolean> {
+async function checkEndpoint(url: string): Promise<boolean> {
   try {
-    const { stdout } = await execAsync(`systemctl is-active ${service}`);
-    return stdout.trim() === 'active';
-  } catch (error) {
-    return false;
-  }
-}
-
-async function checkPort(port: number): Promise<boolean> {
-  try {
-    const { stdout } = await execAsync(`lsof -i:${port} -P -n | grep LISTEN`);
-    return stdout.trim().length > 0;
+    const response = await fetch(url, { 
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+    return response.ok;
   } catch (error) {
     return false;
   }
@@ -24,29 +14,28 @@ async function checkPort(port: number): Promise<boolean> {
 
 export async function GET() {
   try {
-    const prometheusRunning = await checkService('prometheus');
-    const alertmanagerRunning = await checkService('alertmanager');
-    const grafanaRunning = await checkService('grafana-server');
+    const prometheusUrl = process.env.NEXT_PUBLIC_PROMETHEUS_URL || 'http://localhost:9090';
+    const alertmanagerUrl = process.env.NEXT_PUBLIC_ALERTMANAGER_URL || 'http://localhost:9093';
+    const grafanaUrl = process.env.NEXT_PUBLIC_GRAFANA_URL || 'http://localhost:3000';
 
-    const prometheusPortOpen = await checkPort(9090);
-    const alertmanagerPortOpen = await checkPort(9093);
-    const grafanaPortOpen = await checkPort(3000);
+    const [prometheusRunning, alertmanagerRunning, grafanaRunning] = await Promise.all([
+      checkEndpoint(`${prometheusUrl}/-/healthy`),
+      checkEndpoint(`${alertmanagerUrl}/-/healthy`),
+      checkEndpoint(`${grafanaUrl}/api/health`)
+    ]);
 
     return NextResponse.json({
       prometheus: {
-        running: prometheusRunning && prometheusPortOpen,
-        error: !prometheusRunning ? 'Service not running' : 
-               !prometheusPortOpen ? 'Port 9090 not accessible' : undefined
+        running: prometheusRunning,
+        error: !prometheusRunning ? 'Service not accessible' : undefined
       },
       alertmanager: {
-        running: alertmanagerRunning && alertmanagerPortOpen,
-        error: !alertmanagerRunning ? 'Service not running' : 
-               !alertmanagerPortOpen ? 'Port 9093 not accessible' : undefined
+        running: alertmanagerRunning,
+        error: !alertmanagerRunning ? 'Service not accessible' : undefined
       },
       grafana: {
-        running: grafanaRunning && grafanaPortOpen,
-        error: !grafanaRunning ? 'Service not running' : 
-               !grafanaPortOpen ? 'Port 3000 not accessible' : undefined
+        running: grafanaRunning,
+        error: !grafanaRunning ? 'Service not accessible' : undefined
       }
     });
   } catch (error) {
