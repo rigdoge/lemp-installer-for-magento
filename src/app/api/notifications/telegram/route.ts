@@ -1,25 +1,45 @@
 import { NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs/promises';
+import path from 'path';
 
 const execAsync = promisify(exec);
+
+// 配置文件路径
+const CONFIG_FILE = path.join(process.cwd(), 'config', 'telegram.json');
+
+// 确保配置目录存在
+async function ensureConfigDir() {
+    const configDir = path.dirname(CONFIG_FILE);
+    try {
+        await fs.mkdir(configDir, { recursive: true });
+    } catch (error) {
+        console.error('Error creating config directory:', error);
+    }
+}
 
 // 获取当前配置
 export async function GET() {
     try {
         console.log('Getting Telegram configuration...');
-        const configPath = '/etc/monitoring/telegram.conf';
-        const command = `sudo [ -f ${configPath} ] && sudo sh -c 'source ${configPath} && echo "{\\"enabled\\":\\"$ENABLED\\",\\"botToken\\":\\"$BOT_TOKEN\\",\\"chatId\\":\\"$CHAT_ID\\"}"' || echo "{\\"enabled\\":false,\\"botToken\\":\\"\\",\\"chatId\\":\\"\\"}"`;
+        await ensureConfigDir();
         
-        console.log('Executing command:', command);
-        const { stdout, stderr } = await execAsync(command, { shell: '/bin/bash' });
-        
-        if (stderr) {
-            console.error('Command stderr:', stderr);
+        try {
+            const configData = await fs.readFile(CONFIG_FILE, 'utf8');
+            console.log('Config loaded:', configData);
+            return NextResponse.json(JSON.parse(configData));
+        } catch (error) {
+            if (error.code === 'ENOENT') {
+                // 如果文件不存在，返回默认配置
+                return NextResponse.json({
+                    enabled: false,
+                    botToken: '',
+                    chatId: ''
+                });
+            }
+            throw error;
         }
-        
-        console.log('Command output:', stdout);
-        return NextResponse.json(JSON.parse(stdout));
     } catch (error) {
         console.error('Error getting Telegram configuration:', error);
         return NextResponse.json(
@@ -43,21 +63,12 @@ export async function POST(request: Request) {
             );
         }
 
-        // 使用 monitor.sh 脚本更新配置
-        const command = `sudo /home/doge/lemp-installer-for-magento/scripts/monitor.sh update-telegram "${botToken}" "${chatId}" "${enabled}"`;
-        console.log('Executing command:', command);
+        await ensureConfigDir();
         
-        const { stdout, stderr } = await execAsync(command, { shell: '/bin/bash' });
-        console.log('Command output:', stdout);
-        if (stderr) {
-            console.error('Command stderr:', stderr);
-        }
-
-        // 验证配置文件是否已创建
-        const { stdout: checkConfig } = await execAsync('sudo test -f /etc/monitoring/telegram.conf && echo "exists"', { shell: '/bin/bash' });
-        if (!checkConfig.includes('exists')) {
-            throw new Error('Configuration file was not created');
-        }
+        // 保存配置到文件
+        const config = { enabled, botToken, chatId };
+        await fs.writeFile(CONFIG_FILE, JSON.stringify(config, null, 2));
+        console.log('Config saved:', config);
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -74,22 +85,25 @@ export async function PUT(request: Request) {
     try {
         console.log('Testing Telegram notification...');
         
+        // 读取配置
+        const configData = await fs.readFile(CONFIG_FILE, 'utf8');
+        const config = JSON.parse(configData);
+        
+        if (!config.enabled || !config.botToken || !config.chatId) {
+            throw new Error('Telegram is not properly configured');
+        }
+
         // 检查 Nginx 状态
-        const { stdout: nginxStatus } = await execAsync('sudo systemctl is-active nginx', { shell: '/bin/bash' });
+        const { stdout: nginxStatus } = await execAsync('systemctl is-active nginx', { shell: '/bin/bash' });
         const message = `测试消息\n\nNginx 状态: ${nginxStatus.trim()}`;
         
-        // 获取配置并发送消息
-        const configPath = '/etc/monitoring/telegram.conf';
-        const command = `sudo [ -f ${configPath} ] && sudo sh -c 'source ${configPath} && curl -s -X POST "https://api.telegram.org/bot$BOT_TOKEN/sendMessage" -d "chat_id=$CHAT_ID&text=${encodeURIComponent(message)}"'`;
+        // 发送消息
+        const { stdout } = await execAsync(
+            `curl -s -X POST "https://api.telegram.org/bot${config.botToken}/sendMessage" -d "chat_id=${config.chatId}&text=${encodeURIComponent(message)}"`,
+            { shell: '/bin/bash' }
+        );
         
-        console.log('Executing command:', command);
-        const { stdout, stderr } = await execAsync(command, { shell: '/bin/bash' });
-        
-        if (stderr) {
-            console.error('Command stderr:', stderr);
-        }
-        
-        console.log('Command output:', stdout);
+        console.log('Test message sent:', stdout);
         return NextResponse.json({ success: true, result: stdout });
     } catch (error) {
         console.error('Error sending test message:', error);
