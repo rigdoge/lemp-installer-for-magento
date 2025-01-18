@@ -2,8 +2,8 @@
 
 import React from 'react';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
-import { useServiceMonitor } from '@/hooks/useServiceMonitor';
-import type { ServiceStatus } from '@/types/monitoring';
+import { useServiceMonitor } from '../../../hooks/useServiceMonitor';
+import type { ServiceStatus } from '../../../types/monitoring';
 
 export default function NginxMonitor() {
   const { status, loading, error } = useServiceMonitor('nginx');

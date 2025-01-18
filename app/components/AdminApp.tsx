@@ -1,11 +1,11 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Box, Container, Paper, Tab, Tabs } from '@mui/material';
 import dynamic from 'next/dynamic';
 
-const NginxMonitor = dynamic(() => import('@/components/monitoring/nginx/NginxMonitor'), { ssr: false });
-const TelegramConfig = dynamic(() => import('@/components/notifications/TelegramConfig'), { ssr: false });
+const NginxMonitor = dynamic(() => import('./monitoring/nginx/NginxMonitor'), { ssr: false });
+const TelegramConfig = dynamic(() => import('./notifications/TelegramConfig'), { ssr: false });
 
 interface TabPanelProps {
   children?: React.ReactNode;
