@@ -341,7 +341,7 @@ update_telegram() {
     if [ ! -w "$CONFIG_DIR/telegram.conf" ]; then
         echo -e "${RED}无法写入配置文件: $CONFIG_DIR/telegram.conf${NC}"
         exit 1
-    }
+    fi
     
     # 保存配置
     cat > "$CONFIG_DIR/telegram.conf" << EOF
