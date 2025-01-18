@@ -108,7 +108,7 @@ install_alertmanager() {
   cp "alertmanager-${ALERTMANAGER_VERSION}.linux-${ARCH}/alertmanager" /usr/local/bin/
   
   # 创建 Alertmanager 配置文件
-  cat > "$CONFIG_DIR/alertmanager.yml" << EOL
+  cat > "$CONFIG_DIR/alertmanager.yml" << 'EOL'
 global:
   resolve_timeout: 5m
 
@@ -117,23 +117,26 @@ route:
   group_wait: 10s
   group_interval: 10s
   repeat_interval: 1h
-  receiver: 'default'
+  receiver: 'telegram'
 
 receivers:
-- name: 'default'
-  webhook_configs:
-  - url: 'http://localhost:9093/debug/webhook'
-
-- name: 'telegram'
-  telegram_configs:
-  - api_url: 'https://api.telegram.org'
-    bot_token: ''
-    chat_id: 0
-    parse_mode: 'HTML'
-    message: '{{ template "telegram.default.message" . }}'
+  - name: 'telegram'
+    telegram_configs:
+      - api_url: 'https://api.telegram.org'
+        bot_token: '7769020692:AAHcw3raoMSWMxzhasx9gJ4SLsOL5NoAt7c'
+        chat_id: 1171267236
+        parse_mode: 'HTML'
+        message: |
+          <b>{{ .Status | toUpper }}</b>
+          <b>告警名称:</b> {{ .GroupLabels.alertname }}
+          <b>告警级别:</b> {{ .CommonLabels.severity }}
+          <b>详细信息:</b>
+          {{ range .Alerts }}
+          {{ .Annotations.description }}
+          {{ end }}
 
 templates:
-- '/etc/alertmanager/template/*.tmpl'
+  - '/etc/alertmanager/template/*.tmpl'
 EOL
 
   # 创建 systemd 服务
