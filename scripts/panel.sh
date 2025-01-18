@@ -35,6 +35,10 @@ create_directories() {
     mkdir -p "$PANEL_DIR/backend/src/modules/system"
     mkdir -p "$PANEL_DIR/backend/src/core"
     mkdir -p "$PANEL_DIR/backend/src/config"
+    # 配置目录
+    mkdir -p "$INSTALL_DIR/config"
+    chown -R $SUDO_USER:$SUDO_USER "$INSTALL_DIR"
+    chmod -R 755 "$INSTALL_DIR"
 }
 
 # 安装系统依赖
