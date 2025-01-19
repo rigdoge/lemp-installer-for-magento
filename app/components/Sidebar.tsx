@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { styled } from '@mui/material/styles';
 import {
   Drawer,
@@ -8,11 +7,9 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  IconButton,
   Divider,
 } from '@mui/material';
 import {
-  Menu as MenuIcon,
   Dashboard as DashboardIcon,
   Storage as StorageIcon,
   Assessment as AssessmentIcon,
@@ -21,6 +18,10 @@ import {
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+
+interface SidebarProps {
+  open: boolean;
+}
 
 const drawerWidth = 240;
 
@@ -40,94 +41,77 @@ const menuItems = [
   { text: '通知中心', icon: <NotificationsIcon />, path: '/notifications' },
 ];
 
-export default function Sidebar() {
-  const [open, setOpen] = useState(true);
+export default function Sidebar({ open }: SidebarProps) {
   const pathname = usePathname();
 
-  const handleDrawerToggle = () => {
-    setOpen(!open);
-  };
-
   return (
-    <>
-      <IconButton
-        color="inherit"
-        aria-label="open drawer"
-        onClick={handleDrawerToggle}
-        edge="start"
-        sx={{
-          position: 'fixed',
-          left: open ? drawerWidth : 20,
-          top: 20,
-          zIndex: 1300,
-        }}
-      >
-        <MenuIcon />
-      </IconButton>
-      <Drawer
-        variant="permanent"
-        sx={{
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: drawerWidth,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
           width: drawerWidth,
-          flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: drawerWidth,
-            boxSizing: 'border-box',
-            ...(open ? {} : {
-              width: theme => theme.spacing(7),
-              overflowX: 'hidden',
-            }),
-          },
-        }}
-        open={open}
-      >
-        <DrawerHeader />
-        <Divider />
-        <List>
-          {menuItems.map((item) => (
-            <ListItem
-              key={item.text}
-              component={Link}
-              href={item.path}
-              selected={pathname === item.path}
-              sx={{
-                minHeight: 48,
-                justifyContent: open ? 'initial' : 'center',
-                px: 2.5,
-                '&.Mui-selected': {
-                  backgroundColor: 'primary.main',
+          boxSizing: 'border-box',
+          ...(open ? {} : {
+            width: theme => theme.spacing(7),
+            overflowX: 'hidden',
+          }),
+          transition: theme => theme.transitions.create('width', {
+            easing: theme.transitions.easing.sharp,
+            duration: theme.transitions.duration.enteringScreen,
+          }),
+        },
+      }}
+      open={open}
+    >
+      <DrawerHeader />
+      <Divider />
+      <List>
+        {menuItems.map((item) => (
+          <ListItem
+            key={item.text}
+            component={Link}
+            href={item.path}
+            selected={pathname === item.path}
+            sx={{
+              minHeight: 48,
+              justifyContent: open ? 'initial' : 'center',
+              px: 2.5,
+              '&.Mui-selected': {
+                backgroundColor: 'primary.main',
+                color: 'primary.contrastText',
+                '& .MuiListItemIcon-root': {
                   color: 'primary.contrastText',
-                  '& .MuiListItemIcon-root': {
-                    color: 'primary.contrastText',
-                  },
-                  '&:hover': {
-                    backgroundColor: 'primary.dark',
-                  },
                 },
+                '&:hover': {
+                  backgroundColor: 'primary.dark',
+                },
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: 0,
+                mr: open ? 3 : 'auto',
+                justifyContent: 'center',
+                color: pathname === item.path ? 'inherit' : 'text.primary',
               }}
             >
-              <ListItemIcon
+              {item.icon}
+            </ListItemIcon>
+            {open && (
+              <ListItemText
+                primary={item.text}
                 sx={{
-                  minWidth: 0,
-                  mr: open ? 3 : 'auto',
-                  justifyContent: 'center',
+                  opacity: open ? 1 : 0,
                   color: pathname === item.path ? 'inherit' : 'text.primary',
                 }}
-              >
-                {item.icon}
-              </ListItemIcon>
-              {open && (
-                <ListItemText
-                  primary={item.text}
-                  sx={{
-                    opacity: open ? 1 : 0,
-                    color: pathname === item.path ? 'inherit' : 'text.primary',
-                  }}
-                />
-              )}
-            </ListItem>
-          ))}
-        </List>
-      </Drawer>
-    </>
+              />
+            )}
+          </ListItem>
+        ))}
+      </List>
+    </Drawer>
   );
 } 
