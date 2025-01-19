@@ -84,7 +84,7 @@ export default function SystemOverview() {
     );
   }
 
-  if (isLoading) {
+  if (isLoading || !data) {
     return (
       <Box sx={{ p: 3, textAlign: 'center' }}>
         <CircularProgress />
