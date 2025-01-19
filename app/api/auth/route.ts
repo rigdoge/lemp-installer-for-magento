@@ -77,10 +77,14 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const { username, password, rememberMe } = await request.json();
-    const users = await getUsers();
-    const user = users.find(u => u.username === username);
+    console.log('Login attempt:', { username, rememberMe });
 
+    const users = await getUsers();
+    console.log('Current users:', users);
+
+    const user = users.find(u => u.username === username);
     if (!user) {
+      console.log('User not found:', username);
       return NextResponse.json(
         { error: '用户名或密码错误' },
         { status: 401 }
@@ -88,6 +92,8 @@ export async function POST(request: Request) {
     }
 
     const isValid = await compare(password, user.password);
+    console.log('Password validation:', { username, isValid });
+    
     if (!isValid) {
       return NextResponse.json(
         { error: '用户名或密码错误' },
@@ -103,12 +109,13 @@ export async function POST(request: Request) {
     const token = sign({ username: user.username }, JWT_SECRET, {
       expiresIn: rememberMe ? '30d' : '24h',
     });
+    console.log('Generated token for user:', username);
 
     // 设置 cookie
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict' as const,
+      secure: false, // 开发环境设置为 false
+      sameSite: 'lax' as const, // 开发环境设置为 lax
       path: '/',
       expires: rememberMe ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) : undefined,
     };
@@ -118,10 +125,12 @@ export async function POST(request: Request) {
 
     const response = NextResponse.json({ user: safeUser });
     response.cookies.set('auth', token, cookieOptions);
+    console.log('Login successful:', username);
     return response;
   } catch (error) {
+    console.error('Login error:', error);
     return NextResponse.json(
-      { error: '登录失败' },
+      { error: error instanceof Error ? error.message : '登录失败' },
       { status: 500 }
     );
   }
