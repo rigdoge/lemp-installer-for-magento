@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import fs from 'fs/promises';
+import path from 'path';
+import { Site } from '../../sites/route';
 
 const execAsync = promisify(exec);
+const SITES_CONFIG_PATH = path.join(process.cwd(), 'config', 'sites.json');
 
 interface SystemStatus {
   uptime: string;
@@ -21,16 +25,22 @@ interface SystemStatus {
     free: number;
     usage: number;
   };
-  magento: {
-    mode: string;
-    cacheStatus: {
-      enabled: number;
-      total: number;
+  sites: {
+    [key: string]: {
+      name: string;
+      path: string;
+      status: {
+        mode: string;
+        cacheStatus: {
+          enabled: number;
+          total: number;
+        };
+        orders: {
+          today: number;
+        };
+        activeUsers: number;
+      };
     };
-    orders: {
-      today: number;
-    };
-    activeUsers: number;
   };
   services: {
     [key: string]: {
@@ -114,14 +124,14 @@ async function getDiskInfo() {
   }
 }
 
-async function getMagentoInfo() {
+async function getMagentoInfo(site: Site) {
   try {
     // 获取 Magento 模式
-    const { stdout: modeStdout } = await execAsync('cd /var/www/magento && bin/magento deploy:mode:show');
+    const { stdout: modeStdout } = await execAsync(`cd ${site.path} && bin/magento deploy:mode:show`);
     const mode = modeStdout.trim();
 
     // 获取缓存状态
-    const { stdout: cacheStdout } = await execAsync('cd /var/www/magento && bin/magento cache:status');
+    const { stdout: cacheStdout } = await execAsync(`cd ${site.path} && bin/magento cache:status`);
     const enabledCaches = cacheStdout.split('\n').filter(line => line.includes('ENABLED')).length;
     const totalCaches = cacheStdout.split('\n').filter(line => line.trim()).length;
 
@@ -158,7 +168,7 @@ async function getMagentoInfo() {
       activeUsers
     };
   } catch (error) {
-    console.error('Error getting Magento info:', error);
+    console.error(`Error getting Magento info for ${site.name}:`, error);
     return {
       mode: 'unknown',
       cacheStatus: {
@@ -207,14 +217,42 @@ async function getServicesStatus() {
 
 export async function GET() {
   try {
-    const [uptime, cpuUsage, memoryInfo, diskInfo, magentoInfo, servicesStatus] = await Promise.all([
+    // 读取站点配置
+    const sitesData = await fs.readFile(SITES_CONFIG_PATH, 'utf-8');
+    const { sites } = JSON.parse(sitesData);
+    const enabledSites = sites.filter((site: Site) => site.enabled);
+
+    // 并行获取所有信息
+    const [uptime, cpuUsage, memoryInfo, diskInfo, servicesStatus] = await Promise.all([
       getUptime(),
       getCpuUsage(),
       getMemoryInfo(),
       getDiskInfo(),
-      getMagentoInfo(),
       getServicesStatus()
     ]);
+
+    // 并行获取所有站点的 Magento 信息
+    const siteStatuses = await Promise.all(
+      enabledSites.map(async (site: Site) => {
+        const status = await getMagentoInfo(site);
+        return {
+          id: site.id,
+          name: site.name,
+          path: site.path,
+          status
+        };
+      })
+    );
+
+    // 转换为以 ID 为键的对象
+    const sitesObject = siteStatuses.reduce((acc, site) => {
+      acc[site.id] = {
+        name: site.name,
+        path: site.path,
+        status: site.status
+      };
+      return acc;
+    }, {} as SystemStatus['sites']);
 
     const systemStatus: SystemStatus = {
       uptime,
@@ -223,7 +261,7 @@ export async function GET() {
       },
       memory: memoryInfo,
       disk: diskInfo,
-      magento: magentoInfo,
+      sites: sitesObject,
       services: servicesStatus
     };
 
