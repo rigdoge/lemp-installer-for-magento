@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Grid, Paper, Typography, Box, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert } from '@mui/material';
+import { Grid, Paper, Typography, Box, CircularProgress, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, Alert, IconButton, Tooltip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -9,6 +9,8 @@ import StorageIcon from '@mui/icons-material/Storage';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import PeopleIcon from '@mui/icons-material/People';
 import CachedIcon from '@mui/icons-material/Cached';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import SettingsIcon from '@mui/icons-material/Settings';
 import useSWR, { mutate } from 'swr';
 
 interface MagentoStatus {
@@ -38,6 +40,8 @@ interface Site {
   name: string;
   path: string;
   enabled: boolean;
+  frontendUrl?: string;
+  adminUrl?: string;
 }
 
 const Item = styled(Paper)(({ theme }) => ({
@@ -71,6 +75,8 @@ export default function SiteMonitor() {
   const [siteName, setSiteName] = useState('');
   const [sitePath, setSitePath] = useState('');
   const [editingSite, setEditingSite] = useState<Site | null>(null);
+  const [frontendUrl, setFrontendUrl] = useState('');
+  const [adminUrl, setAdminUrl] = useState('');
 
   const { data: systemData, error: systemError, isLoading: systemLoading } = 
     useSWR<SystemStatusData>('/api/system/status', fetcher, {
@@ -87,7 +93,9 @@ export default function SiteMonitor() {
       id: editingSite?.id,
       name: siteName,
       path: sitePath,
-      enabled: true
+      enabled: true,
+      frontendUrl: frontendUrl,
+      adminUrl: adminUrl
     };
 
     await fetch('/api/sites', {
@@ -100,6 +108,8 @@ export default function SiteMonitor() {
 
     setSiteName('');
     setSitePath('');
+    setFrontendUrl('');
+    setAdminUrl('');
     setEditingSite(null);
     setIsDialogOpen(false);
     mutate('/api/sites');
@@ -120,6 +130,8 @@ export default function SiteMonitor() {
     setEditingSite(site);
     setSiteName(site.name);
     setSitePath(site.path);
+    setFrontendUrl(site.frontendUrl || '');
+    setAdminUrl(site.adminUrl || '');
     setIsDialogOpen(true);
   };
 
@@ -154,6 +166,8 @@ export default function SiteMonitor() {
             setEditingSite(null);
             setSiteName('');
             setSitePath('');
+            setFrontendUrl('');
+            setAdminUrl('');
             setIsDialogOpen(true);
           }}
         >
@@ -173,6 +187,36 @@ export default function SiteMonitor() {
                   <Typography variant="body2" color="text.secondary">
                     路径: {site.path}
                   </Typography>
+                  <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                    {site.frontendUrl && (
+                      <Tooltip title="访问前台">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          component="a"
+                          href={site.frontendUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <OpenInNewIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {site.adminUrl && (
+                      <Tooltip title="访问后台">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          component="a"
+                          href={site.adminUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <SettingsIcon />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </Box>
                 <Box>
                   <Button
@@ -279,6 +323,22 @@ export default function SiteMonitor() {
             value={sitePath}
             onChange={(e) => setSitePath(e.target.value)}
             helperText="例如: /home/doge/html"
+          />
+          <TextField
+            margin="dense"
+            label="前台 URL"
+            fullWidth
+            value={frontendUrl}
+            onChange={(e) => setFrontendUrl(e.target.value)}
+            helperText="例如: https://magento.example.com"
+          />
+          <TextField
+            margin="dense"
+            label="后台 URL"
+            fullWidth
+            value={adminUrl}
+            onChange={(e) => setAdminUrl(e.target.value)}
+            helperText="例如: https://magento.example.com/admin"
           />
         </DialogContent>
         <DialogActions>

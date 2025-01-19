@@ -9,6 +9,8 @@ export interface Site {
   name: string;
   path: string;
   enabled: boolean;
+  frontendUrl?: string;  // 前台 URL
+  adminUrl?: string;     // 后台 URL
 }
 
 // 确保配置目录和文件存在
@@ -63,6 +65,8 @@ export async function POST(request: Request) {
       // 新站点
       site.id = Date.now().toString();
       site.enabled = true;
+      site.frontendUrl = site.frontendUrl || '';
+      site.adminUrl = site.adminUrl || '';
       config.sites.push(site);
     } else {
       // 更新现有站点
@@ -73,7 +77,12 @@ export async function POST(request: Request) {
           { status: 404 }
         );
       }
-      config.sites[index] = { ...config.sites[index], ...site };
+      config.sites[index] = { 
+        ...config.sites[index], 
+        ...site,
+        frontendUrl: site.frontendUrl || config.sites[index].frontendUrl || '',
+        adminUrl: site.adminUrl || config.sites[index].adminUrl || ''
+      };
     }
 
     await fs.writeFile(SITES_CONFIG_PATH, JSON.stringify(config, null, 2));
