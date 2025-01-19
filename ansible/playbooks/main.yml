@@ -1,62 +1,81 @@
 ---
 # Main playbook for LEMP stack installation and configuration
-- name: Install and configure LEMP stack
+- name: LEMP Stack Installation and Configuration
   hosts: all
-  become: true
-  gather_facts: true
+  become: yes
+  vars_files:
+    - ../vars/main.yml
 
   pre_tasks:
     - name: Update apt cache
       apt:
         update_cache: yes
         cache_valid_time: 3600
-      when: ansible_os_family == "Debian"
-
-    - name: Install common packages
-      apt:
-        name:
-          - apt-transport-https
-          - ca-certificates
-          - curl
-          - software-properties-common
-          - python3-pip
-        state: present
-      when: ansible_os_family == "Debian"
 
   roles:
+    # 基础系统配置
     - role: common
       tags: ['common']
     
+    # 安全配置
+    - role: security
+      tags: ['security']
+    
+    # Web 服务器
     - role: nginx
       tags: ['nginx']
     
-    - role: php
-      tags: ['php']
-    
+    # 数据库
     - role: percona
       tags: ['database']
     
+    # PHP
+    - role: php
+      tags: ['php']
+    
+    # 缓存系统
     - role: redis
       tags: ['cache']
+    - role: varnish
+      tags: ['cache']
+    - role: memcached
+      tags: ['cache']
     
-    - role: opensearch
-      tags: ['search']
-    
+    # 消息队列
     - role: rabbitmq
       tags: ['queue']
     
-    - role: varnish
-      tags: ['cache']
+    # 搜索引擎
+    - role: opensearch
+      tags: ['search']
     
-    - role: monitoring
+    # 监控系统
+    - role: prometheus
+      tags: ['monitoring']
+    - role: grafana
+      tags: ['monitoring']
+    - role: node_exporter
       tags: ['monitoring']
     
-    - role: security
-      tags: ['security']
+    # 日志管理
+    - role: filebeat
+      tags: ['logging']
+    
+    # SSL 证书
+    - role: certbot
+      tags: ['ssl']
+    
+    # 系统管理
+    - role: webmin
+      tags: ['admin']
+    
+    # Magento 优化
+    - role: magento
+      tags: ['magento']
 
   post_tasks:
-    - name: Verify services are running
-      service:
+    - name: Verify services status
+      systemd:
         name: "{{ item }}"
         state: started
         enabled: yes
@@ -65,7 +84,10 @@
         - php8.2-fpm
         - mysql
         - redis-server
-        - opensearch
-        - rabbitmq-server
         - varnish
-      ignore_errors: yes 
+        - rabbitmq-server
+        - opensearch
+        - prometheus
+        - grafana-server
+        - fail2ban
+        - webmin 

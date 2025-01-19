@@ -1,0 +1,106 @@
+---
+# 系统配置
+system:
+  timezone: UTC
+  locale: en_US.UTF-8
+  swap_size: 2G
+
+# 安全配置
+security:
+  fail2ban:
+    enabled: true
+    bantime: 3600
+    findtime: 600
+    maxretry: 3
+  ufw:
+    enabled: true
+    allowed_ports:
+      - 22    # SSH
+      - 80    # HTTP
+      - 443   # HTTPS
+      - 3306  # MySQL
+      - 6379  # Redis
+      - 9200  # OpenSearch HTTP
+      - 5672  # RabbitMQ
+      - 8080  # Varnish
+      - 9090  # Prometheus
+      - 9093  # Alertmanager
+      - 9100  # Node Exporter
+      - 10000 # Webmin
+
+# Nginx 配置
+nginx:
+  version: 1.24
+  worker_processes: auto
+  worker_connections: 1024
+  client_max_body_size: 100M
+  keepalive_timeout: 65
+
+# PHP 配置
+php:
+  version: 8.2
+  memory_limit: 2G
+  max_execution_time: 1800
+  upload_max_filesize: 100M
+  post_max_size: 100M
+  opcache:
+    enabled: true
+    memory_consumption: 256
+    interned_strings_buffer: 16
+    max_accelerated_files: 20000
+
+# MySQL (Percona) 配置
+mysql:
+  version: 8.0
+  root_password: "{{ vault_mysql_root_password }}"
+  innodb_buffer_pool_size: 1G
+  max_connections: 150
+
+# Redis 配置
+redis:
+  version: 7.2
+  maxmemory: 1gb
+  maxmemory_policy: allkeys-lru
+
+# Varnish 配置
+varnish:
+  version: 7.5
+  memory: 1G
+  storage_size: 1G
+
+# RabbitMQ 配置
+rabbitmq:
+  version: 3.13
+  user: magento
+  password: "{{ vault_rabbitmq_password }}"
+
+# OpenSearch 配置
+opensearch:
+  version: 2.12
+  heap_size: 1g
+  cluster_name: magento-cluster
+
+# 监控配置
+monitoring:
+  prometheus:
+    version: 2.49
+    retention_time: 15d
+    storage_size: 30GB
+  grafana:
+    version: 10.2
+    admin_password: "{{ vault_grafana_admin_password }}"
+  alertmanager:
+    version: 0.26
+    smtp:
+      host: smtp.gmail.com
+      port: 587
+      username: "{{ vault_smtp_username }}"
+      password: "{{ vault_smtp_password }}"
+
+# Magento 配置
+magento:
+  deploy_mode: production
+  admin_frontname: admin
+  cache_backend: redis
+  session_backend: redis
+  search_engine: opensearch 
