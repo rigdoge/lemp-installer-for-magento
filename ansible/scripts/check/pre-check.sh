@@ -9,13 +9,16 @@ NC='\033[0m'
 # Default values
 HOST=""
 KEY_FILE=""
+USE_PASSWORD=false
 
 # Parse command line arguments
-while getopts "h:k:" opt; do
+while getopts "h:k:p" opt; do
   case $opt in
     h) HOST="$OPTARG"
       ;;
     k) KEY_FILE="$OPTARG"
+      ;;
+    p) USE_PASSWORD=true
       ;;
     \?) echo "Invalid option -$OPTARG" >&2
       exit 1
@@ -24,14 +27,23 @@ while getopts "h:k:" opt; do
 done
 
 # Validate required parameters
-if [ -z "$HOST" ] || [ -z "$KEY_FILE" ]; then
-  echo "Usage: $0 -h <host> -k <key_file>"
+if [ -z "$HOST" ]; then
+  echo "Usage: $0 -h <host> [-k <key_file> | -p]"
+  exit 1
+fi
+
+if [ "$USE_PASSWORD" = false ] && [ -z "$KEY_FILE" ]; then
+  echo "Either SSH key (-k) or password (-p) must be specified"
   exit 1
 fi
 
 # Function to run remote command
 run_remote() {
-  ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no "root@$HOST" "$1"
+  if [ "$USE_PASSWORD" = true ]; then
+    sshpass -e ssh -o StrictHostKeyChecking=no "root@$HOST" "$1"
+  else
+    ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no "root@$HOST" "$1"
+  fi
 }
 
 # Function to check system requirements

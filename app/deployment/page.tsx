@@ -15,14 +15,17 @@ import {
   TextField,
   FormControl,
   FormControlLabel,
-  Checkbox,
+  Radio,
+  RadioGroup,
   Alert,
   CircularProgress,
 } from '@mui/material';
 
 interface DeploymentConfig {
   host: string;
-  sshKey: string;
+  authType: 'password' | 'sshKey';
+  password?: string;
+  sshKey?: string;
   components: {
     nginx: boolean;
     php: boolean;
@@ -52,7 +55,8 @@ export default function DeploymentPage() {
   const [checkResults, setCheckResults] = useState<any>(null);
   const [config, setConfig] = useState<DeploymentConfig>({
     host: '',
-    sshKey: '',
+    authType: 'password',
+    password: '',
     components: {
       nginx: true,
       php: true,
@@ -83,7 +87,12 @@ export default function DeploymentPage() {
         const response = await fetch('/api/deployment/check', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ host: config.host, sshKey: config.sshKey }),
+          body: JSON.stringify({
+            host: config.host,
+            authType: config.authType,
+            password: config.password,
+            sshKey: config.sshKey,
+          }),
         });
         
         if (!response.ok) throw new Error('环境检查失败');
@@ -133,15 +142,53 @@ export default function DeploymentPage() {
                   />
                 </Grid>
                 <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="SSH 密钥"
-                    multiline
-                    rows={4}
-                    value={config.sshKey}
-                    onChange={(e) => setConfig({...config, sshKey: e.target.value})}
-                    helperText="输入 SSH 私钥内容"
-                  />
+                  <FormControl component="fieldset">
+                    <Typography variant="subtitle1" gutterBottom>
+                      认证方式
+                    </Typography>
+                    <RadioGroup
+                      value={config.authType}
+                      onChange={(e) => setConfig({
+                        ...config,
+                        authType: e.target.value as 'password' | 'sshKey',
+                        password: '',
+                        sshKey: ''
+                      })}
+                    >
+                      <FormControlLabel
+                        value="password"
+                        control={<Radio />}
+                        label="密码登录"
+                      />
+                      <FormControlLabel
+                        value="sshKey"
+                        control={<Radio />}
+                        label="SSH 密钥"
+                      />
+                    </RadioGroup>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12}>
+                  {config.authType === 'password' ? (
+                    <TextField
+                      fullWidth
+                      type="password"
+                      label="SSH 密码"
+                      value={config.password || ''}
+                      onChange={(e) => setConfig({...config, password: e.target.value})}
+                      helperText="输入 SSH 登录密码"
+                    />
+                  ) : (
+                    <TextField
+                      fullWidth
+                      label="SSH 密钥"
+                      multiline
+                      rows={4}
+                      value={config.sshKey || ''}
+                      onChange={(e) => setConfig({...config, sshKey: e.target.value})}
+                      helperText="输入 SSH 私钥内容"
+                    />
+                  )}
                 </Grid>
               </Grid>
             </CardContent>
@@ -161,7 +208,7 @@ export default function DeploymentPage() {
                     <FormControl fullWidth>
                       <FormControlLabel
                         control={
-                          <Checkbox
+                          <Radio
                             checked={value}
                             onChange={(e) => setConfig({
                               ...config,
@@ -206,6 +253,7 @@ export default function DeploymentPage() {
               <Grid container spacing={2}>
                 <Grid item xs={12}>
                   <Typography variant="subtitle1">目标主机: {config.host}</Typography>
+                  <Typography variant="subtitle1">认证方式: {config.authType === 'password' ? '密码登录' : 'SSH 密钥'}</Typography>
                 </Grid>
                 <Grid item xs={12}>
                   <Typography variant="subtitle1">选择的组件:</Typography>
@@ -229,7 +277,6 @@ export default function DeploymentPage() {
               <Typography variant="h6" gutterBottom>
                 安装进度
               </Typography>
-              {/* 这里可以添加实时安装日志显示 */}
               <Box sx={{ mt: 2 }}>
                 <CircularProgress />
               </Box>
@@ -248,44 +295,42 @@ export default function DeploymentPage() {
         部署管理
       </Typography>
       
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Stepper activeStep={activeStep} sx={{ mb: 3 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+      <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
 
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {renderStepContent(activeStep)}
+
+      <Box sx={{ mt: 3, display: 'flex', justifyContent: 'flex-end' }}>
+        {activeStep > 0 && (
+          <Button
+            onClick={handleBack}
+            sx={{ mr: 1 }}
+            disabled={loading}
+          >
+            上一步
+          </Button>
         )}
-
-        {renderStepContent(activeStep)}
-
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-          {activeStep !== 0 && (
-            <Button
-              onClick={handleBack}
-              sx={{ mr: 1 }}
-              disabled={loading}
-            >
-              上一步
-            </Button>
-          )}
-          {activeStep !== steps.length - 1 && (
-            <Button
-              variant="contained"
-              onClick={handleNext}
-              disabled={loading}
-            >
-              {activeStep === steps.length - 2 ? '开始部署' : '下一步'}
-            </Button>
-          )}
-        </Box>
-      </Paper>
+        {activeStep < steps.length - 1 && (
+          <Button
+            variant="contained"
+            onClick={handleNext}
+            disabled={loading}
+          >
+            {activeStep === steps.length - 2 ? '开始安装' : '下一步'}
+          </Button>
+        )}
+      </Box>
     </Box>
   );
 } 
