@@ -215,6 +215,9 @@ async function getServicesStatus() {
   return statuses;
 }
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     // 读取站点配置

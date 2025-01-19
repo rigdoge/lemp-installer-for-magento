@@ -120,4 +120,7 @@ export async function DELETE(request: Request) {
       { status: 500 }
     );
   }
-} 
+}
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0; 
