@@ -1,12 +1,9 @@
 'use client';
 
-import { useState } from 'react';
 import { Box } from '@mui/material';
-import Header from './components/Header';
-import Sidebar from './components/Sidebar';
-import { ThemeProvider } from './contexts/ThemeContext';
-
-const drawerWidth = 240;
+import Header from './components/layout/Header';
+import Sidebar from './components/layout/Sidebar';
+import { useState } from 'react';
 
 export default function RootLayoutClient({
   children,
@@ -20,27 +17,20 @@ export default function RootLayoutClient({
   };
 
   return (
-    <ThemeProvider>
-      <Box sx={{ display: 'flex', minHeight: '100vh' }}>
-        <Header open={drawerOpen} onDrawerToggle={handleDrawerToggle} />
-        <Sidebar open={drawerOpen} />
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            p: 0,
-            width: { sm: `calc(100% - ${drawerWidth}px)` },
-            ml: { sm: drawerOpen ? `${drawerWidth}px` : 0 },
-            transition: theme => theme.transitions.create('margin', {
-              easing: theme.transitions.easing.sharp,
-              duration: theme.transitions.duration.leavingScreen,
-            }),
-            mt: '64px', // 为顶部 AppBar 留出空间
-          }}
-        >
-          {children}
-        </Box>
+    <Box sx={{ display: 'flex', minHeight: '100vh' }}>
+      <Header open={drawerOpen} onDrawerToggle={handleDrawerToggle} />
+      <Sidebar open={drawerOpen} onClose={handleDrawerToggle} />
+      <Box
+        component="main"
+        sx={{
+          flexGrow: 1,
+          mt: 8,
+          ml: drawerOpen ? 32 : 8,
+          transition: 'margin 225ms cubic-bezier(0.4, 0, 0.6, 1) 0ms',
+        }}
+      >
+        {children}
       </Box>
-    </ThemeProvider>
+    </Box>
   );
 } 
