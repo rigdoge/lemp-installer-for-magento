@@ -1,12 +1,48 @@
 'use client';
 
 import React from 'react';
-import { Grid, Paper, Typography, Box } from '@mui/material';
+import { Grid, Paper, Typography, Box, CircularProgress } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import StorageIcon from '@mui/icons-material/Storage';
 import MemoryIcon from '@mui/icons-material/Memory';
 import SpeedIcon from '@mui/icons-material/Speed';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import useSWR from 'swr';
+
+interface ServiceStatus {
+  status: 'running' | 'stopped' | 'error';
+}
+
+interface SystemStatusData {
+  uptime: string;
+  cpu: {
+    usage: number;
+  };
+  memory: {
+    usage: number;
+    used: number;
+    total: number;
+  };
+  disk: {
+    usage: number;
+    used: number;
+    total: number;
+  };
+  magento: {
+    mode: string;
+    cacheStatus: {
+      enabled: number;
+      total: number;
+    };
+    orders: {
+      today: number;
+    };
+    activeUsers: number;
+  };
+  services: {
+    [key: string]: ServiceStatus;
+  };
+}
 
 const Item = styled(Paper)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -23,7 +59,39 @@ const MetricBox = styled(Box)(({ theme }) => ({
   },
 }));
 
+const fetcher = (url: string) => fetch(url).then(res => res.json());
+
+const formatBytes = (bytes: number) => {
+  if (bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return `${(bytes / Math.pow(k, i)).toFixed(2)} ${sizes[i]}`;
+};
+
 export default function SystemOverview() {
+  const { data, error, isLoading } = useSWR<SystemStatusData>('/api/system/status', fetcher, {
+    refreshInterval: 5000 // 每5秒刷新一次
+  });
+
+  if (error) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Typography color="error">
+          获取系统状态失败
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
   return (
     <Grid container spacing={3}>
       {/* 系统状态卡片 */}
@@ -39,7 +107,7 @@ export default function SystemOverview() {
                 系统运行时间
               </Typography>
               <Typography variant="h6">
-                14天 3小时 22分钟
+                {data.uptime}
               </Typography>
             </Box>
           </MetricBox>
@@ -50,7 +118,7 @@ export default function SystemOverview() {
                 CPU 使用率
               </Typography>
               <Typography variant="h6">
-                32%
+                {data.cpu.usage.toFixed(1)}%
               </Typography>
             </Box>
           </MetricBox>
@@ -61,7 +129,7 @@ export default function SystemOverview() {
                 内存使用率
               </Typography>
               <Typography variant="h6">
-                45% (7.2GB/16GB)
+                {data.memory.usage.toFixed(1)}% ({formatBytes(data.memory.used)}/{formatBytes(data.memory.total)})
               </Typography>
             </Box>
           </MetricBox>
@@ -72,7 +140,7 @@ export default function SystemOverview() {
                 磁盘使用率
               </Typography>
               <Typography variant="h6">
-                68% (137GB/200GB)
+                {data.disk.usage.toFixed(1)}% ({formatBytes(data.disk.used)}/{formatBytes(data.disk.total)})
               </Typography>
             </Box>
           </MetricBox>
@@ -90,7 +158,7 @@ export default function SystemOverview() {
               运行模式
             </Typography>
             <Typography variant="h6">
-              Production
+              {data.magento.mode}
             </Typography>
           </Box>
           <Box sx={{ mb: 2 }}>
@@ -98,7 +166,7 @@ export default function SystemOverview() {
               缓存状态
             </Typography>
             <Typography variant="h6">
-              已启用 (12/12)
+              已启用 ({data.magento.cacheStatus.enabled}/{data.magento.cacheStatus.total})
             </Typography>
           </Box>
           <Box sx={{ mb: 2 }}>
@@ -106,7 +174,7 @@ export default function SystemOverview() {
               今日订单数
             </Typography>
             <Typography variant="h6">
-              24
+              {data.magento.orders.today}
             </Typography>
           </Box>
           <Box sx={{ mb: 2 }}>
@@ -114,7 +182,7 @@ export default function SystemOverview() {
               当前活跃用户
             </Typography>
             <Typography variant="h6">
-              156
+              {data.magento.activeUsers}
             </Typography>
           </Box>
         </Item>
@@ -127,15 +195,13 @@ export default function SystemOverview() {
             服务状态
           </Typography>
           <Grid container spacing={2}>
-            {[
-              'Nginx', 'PHP-FPM', 'MySQL', 'Redis',
-              'RabbitMQ', 'Varnish', 'OpenSearch', 'Memcached'
-            ].map((service) => (
+            {Object.entries(data.services).map(([service, status]) => (
               <Grid item xs={6} sm={3} key={service}>
                 <Box sx={{ 
                   p: 2, 
                   borderRadius: 1,
-                  bgcolor: 'success.main',
+                  bgcolor: status.status === 'running' ? 'success.main' : 
+                          status.status === 'stopped' ? 'warning.main' : 'error.main',
                   color: 'white',
                   textAlign: 'center'
                 }}>
@@ -143,7 +209,8 @@ export default function SystemOverview() {
                     {service}
                   </Typography>
                   <Typography variant="body2">
-                    运行中
+                    {status.status === 'running' ? '运行中' : 
+                     status.status === 'stopped' ? '已停止' : '错误'}
                   </Typography>
                 </Box>
               </Grid>
