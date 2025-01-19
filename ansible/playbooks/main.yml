@@ -1,0 +1,71 @@
+---
+# Main playbook for LEMP stack installation and configuration
+- name: Install and configure LEMP stack
+  hosts: all
+  become: true
+  gather_facts: true
+
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      when: ansible_os_family == "Debian"
+
+    - name: Install common packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+          - python3-pip
+        state: present
+      when: ansible_os_family == "Debian"
+
+  roles:
+    - role: common
+      tags: ['common']
+    
+    - role: nginx
+      tags: ['nginx']
+    
+    - role: php
+      tags: ['php']
+    
+    - role: percona
+      tags: ['database']
+    
+    - role: redis
+      tags: ['cache']
+    
+    - role: opensearch
+      tags: ['search']
+    
+    - role: rabbitmq
+      tags: ['queue']
+    
+    - role: varnish
+      tags: ['cache']
+    
+    - role: monitoring
+      tags: ['monitoring']
+    
+    - role: security
+      tags: ['security']
+
+  post_tasks:
+    - name: Verify services are running
+      service:
+        name: "{{ item }}"
+        state: started
+        enabled: yes
+      loop:
+        - nginx
+        - php8.2-fpm
+        - mysql
+        - redis-server
+        - opensearch
+        - rabbitmq-server
+        - varnish
+      ignore_errors: yes 
