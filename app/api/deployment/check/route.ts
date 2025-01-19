@@ -8,7 +8,7 @@ const execAsync = promisify(exec);
 
 export async function POST(request: Request) {
   try {
-    const { host, authType, password, sshKey } = await request.json();
+    const { host, username, authType, password, sshKey } = await request.json();
 
     // 创建临时目录
     const tmpDir = path.join(process.cwd(), 'tmp');
@@ -18,12 +18,12 @@ export async function POST(request: Request) {
 
     if (authType === 'password') {
       // 使用 sshpass 进行密码登录
-      checkCommand = `SSHPASS='${password}' sshpass -e ${path.join(process.cwd(), 'ansible', 'scripts', 'check', 'pre-check.sh')} -h ${host} -p`;
+      checkCommand = `SSHPASS='${password}' sshpass -e ${path.join(process.cwd(), 'ansible', 'scripts', 'check', 'pre-check.sh')} -h ${host} -u ${username} -p`;
     } else {
       // 使用 SSH 密钥登录
       const keyPath = path.join(tmpDir, 'deploy.key');
       await writeFile(keyPath, sshKey, { mode: 0o600 });
-      checkCommand = `${path.join(process.cwd(), 'ansible', 'scripts', 'check', 'pre-check.sh')} -h ${host} -k ${keyPath}`;
+      checkCommand = `${path.join(process.cwd(), 'ansible', 'scripts', 'check', 'pre-check.sh')} -h ${host} -u ${username} -k ${keyPath}`;
     }
 
     // 执行环境检查脚本

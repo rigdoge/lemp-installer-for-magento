@@ -8,15 +8,18 @@ NC='\033[0m'
 
 # Default values
 HOST=""
+USERNAME="root"
 KEY_FILE=""
 USE_PASSWORD=false
 
 # Parse command line arguments
-while getopts "h:k:p" opt; do
+while getopts "h:k:u:p" opt; do
   case $opt in
     h) HOST="$OPTARG"
       ;;
     k) KEY_FILE="$OPTARG"
+      ;;
+    u) USERNAME="$OPTARG"
       ;;
     p) USE_PASSWORD=true
       ;;
@@ -28,7 +31,7 @@ done
 
 # Validate required parameters
 if [ -z "$HOST" ]; then
-  echo "Usage: $0 -h <host> [-k <key_file> | -p]"
+  echo "Usage: $0 -h <host> -u <username> [-k <key_file> | -p]"
   exit 1
 fi
 
@@ -40,9 +43,9 @@ fi
 # Function to run remote command
 run_remote() {
   if [ "$USE_PASSWORD" = true ]; then
-    sshpass -e ssh -o StrictHostKeyChecking=no "root@$HOST" "$1"
+    sshpass -e ssh -o StrictHostKeyChecking=no "$USERNAME@$HOST" "$1"
   else
-    ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no "root@$HOST" "$1"
+    ssh -i "$KEY_FILE" -o StrictHostKeyChecking=no "$USERNAME@$HOST" "$1"
   fi
 }
 

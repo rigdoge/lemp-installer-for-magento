@@ -23,6 +23,7 @@ import {
 
 interface DeploymentConfig {
   host: string;
+  username: string;
   authType: 'password' | 'sshKey';
   password?: string;
   sshKey?: string;
@@ -55,6 +56,7 @@ export default function DeploymentPage() {
   const [checkResults, setCheckResults] = useState<any>(null);
   const [config, setConfig] = useState<DeploymentConfig>({
     host: '',
+    username: 'root',
     authType: 'password',
     password: '',
     components: {
@@ -139,6 +141,15 @@ export default function DeploymentPage() {
                     value={config.host}
                     onChange={(e) => setConfig({...config, host: e.target.value})}
                     helperText="输入目标服务器的 IP 地址或域名"
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="SSH 用户名"
+                    value={config.username}
+                    onChange={(e) => setConfig({...config, username: e.target.value})}
+                    helperText="输入 SSH 登录用户名，默认为 root"
                   />
                 </Grid>
                 <Grid item xs={12}>
