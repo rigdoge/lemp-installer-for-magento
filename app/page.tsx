@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import dynamic from 'next/dynamic';
+import SystemOverview from './components/dashboard/SystemOverview';
 
-const AdminApp = dynamic(() => import('./components/AdminApp'), { ssr: false });
-
-export default function Page() {
-  return <AdminApp />;
+export default function Home() {
+  return (
+    <SystemOverview />
+  );
 } 
