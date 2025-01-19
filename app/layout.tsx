@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
-import RootLayoutClient from './RootLayoutClient';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
+import { AuthProvider } from './contexts/AuthContext';
+import ThemeRegistry from './components/ThemeRegistry/ThemeRegistry';
 
 export const metadata: Metadata = {
   title: 'LEMP Manager',
@@ -14,9 +16,13 @@ export default function RootLayout({
   return (
     <html lang="zh">
       <body>
-        <RootLayoutClient>
-          {children}
-        </RootLayoutClient>
+        <AppRouterCacheProvider>
+          <ThemeRegistry>
+            <AuthProvider>
+              {children}
+            </AuthProvider>
+          </ThemeRegistry>
+        </AppRouterCacheProvider>
       </body>
     </html>
   );
