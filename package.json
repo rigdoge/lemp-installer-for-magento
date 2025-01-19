@@ -1,6 +1,6 @@
 {
   "name": "lemp-manager-frontend",
-  "version": "1.2.8",
+  "version": "1.2.9",
   "private": true,
   "scripts": {
     "dev": "npx next dev -p 3001",
