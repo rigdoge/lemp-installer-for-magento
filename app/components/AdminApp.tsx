@@ -2,7 +2,8 @@
 
 import React from 'react';
 import dynamic from 'next/dynamic';
-import { Box, Tab, Tabs } from '@mui/material';
+import { Box, Tab, Tabs, AppBar, Toolbar, Typography } from '@mui/material';
+import ThemeToggle from './ThemeToggle';
 
 const PrometheusMonitor = dynamic(() => import('./monitoring/PrometheusMonitor'), { ssr: false });
 const PrometheusConfig = dynamic(() => import('./monitoring/PrometheusConfig'), { ssr: false });
@@ -41,17 +42,27 @@ export default function AdminApp() {
   };
 
   return (
-    <Box sx={{ width: '100%' }}>
-      <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+    <Box sx={{ flexGrow: 1 }}>
+      <AppBar position="static">
+        <Toolbar>
+          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
+            LEMP Stack Manager
+          </Typography>
+          <ThemeToggle />
+        </Toolbar>
         <Tabs value={tabValue} onChange={handleChange}>
+          <Tab label="系统概览" />
           <Tab label="系统监控" />
-          <Tab label="监控配置" />
+          <Tab label="通知设置" />
         </Tabs>
-      </Box>
+      </AppBar>
       <TabPanel value={tabValue} index={0}>
-        <PrometheusMonitor />
+        系统概览
       </TabPanel>
       <TabPanel value={tabValue} index={1}>
+        <PrometheusMonitor />
+      </TabPanel>
+      <TabPanel value={tabValue} index={2}>
         <PrometheusConfig />
       </TabPanel>
     </Box>
