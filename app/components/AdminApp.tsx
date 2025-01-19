@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { Box, Tab, Tabs, AppBar, Toolbar, Typography } from '@mui/material';
 import ThemeToggle from './ThemeToggle';
 
+const SystemOverview = dynamic(() => import('./dashboard/SystemOverview'), { ssr: false });
 const PrometheusMonitor = dynamic(() => import('./monitoring/PrometheusMonitor'), { ssr: false });
 const PrometheusConfig = dynamic(() => import('./monitoring/PrometheusConfig'), { ssr: false });
 
@@ -57,7 +58,7 @@ export default function AdminApp() {
         </Tabs>
       </AppBar>
       <TabPanel value={tabValue} index={0}>
-        系统概览
+        <SystemOverview />
       </TabPanel>
       <TabPanel value={tabValue} index={1}>
         <PrometheusMonitor />
