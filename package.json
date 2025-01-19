@@ -1,6 +1,6 @@
 {
   "name": "lemp-manager-frontend",
-  "version": "1.2.67",
+  "version": "1.2.68",
   "private": true,
   "scripts": {
     "dev": "npx next dev -p 3001 -H 0.0.0.0",
@@ -10,6 +10,9 @@
   "dependencies": {
     "@emotion/react": "^11.11.3",
     "@emotion/styled": "^11.11.0",
+    "@mui/material": "^5.15.5",
+    "@mui/icons-material": "^5.15.5",
+    "@mui/x-data-grid": "^6.18.7",
     "@opensearch-project/opensearch": "^3.1.0",
     "bcrypt": "^5.1.1",
     "chart.js": "^4.4.7",
