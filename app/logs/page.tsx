@@ -14,7 +14,6 @@ import {
   Pagination,
 } from 'react-admin';
 import { Card, CardContent, Box } from '@mui/material';
-import { DataGrid } from '@mui/x-data-grid';
 
 const logLevels = [
   { id: 'ERROR', name: 'ERROR' },
@@ -38,23 +37,29 @@ const logSources = [
 ];
 
 const LogFilters = [
-  <SelectInput source="level" choices={logLevels} alwaysOn />,
-  <SelectInput source="source" choices={logSources} alwaysOn />,
-  <TextInput source="q" label="搜索" alwaysOn />,
+  <SelectInput key="level" source="level" choices={logLevels} alwaysOn />,
+  <SelectInput key="source" source="source" choices={logSources} alwaysOn />,
+  <TextInput key="search" source="q" label="搜索" alwaysOn />,
 ];
 
-export const LogList = () => (
-  <List
-    filters={LogFilters}
-    sort={{ field: 'timestamp', order: 'DESC' }}
-    perPage={25}
-    pagination={<Pagination rowsPerPageOptions={[10, 25, 50, 100]} />}
-  >
-    <Datagrid bulkActionButtons={false}>
-      <DateField source="timestamp" showTime />
-      <TextField source="level" />
-      <TextField source="source" />
-      <TextField source="message" />
-    </Datagrid>
-  </List>
-); 
+function LogListComponent() {
+  return (
+    <List
+      filters={LogFilters}
+      sort={{ field: 'timestamp', order: 'DESC' }}
+      perPage={25}
+      pagination={<Pagination rowsPerPageOptions={[10, 25, 50, 100]} />}
+    >
+      <Datagrid bulkActionButtons={false}>
+        <DateField source="timestamp" showTime />
+        <TextField source="level" />
+        <TextField source="source" />
+        <TextField source="message" />
+      </Datagrid>
+    </List>
+  );
+}
+
+export default function LogsPage() {
+  return <LogListComponent />;
+} 

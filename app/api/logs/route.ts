@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
 import { Client } from '@opensearch-project/opensearch';
+import { SearchResponse } from '@opensearch-project/opensearch/api/types';
+
+interface LogEntry {
+  id: string;
+  timestamp: string;
+  level: string;
+  source: string;
+  message: string;
+}
 
 // OpenSearch 客户端配置
 const client = new Client({
@@ -47,7 +56,7 @@ export async function GET(request: Request) {
     }
 
     // 执行 OpenSearch 查询
-    const response = await client.search({
+    const response = await client.search<LogEntry>({
       index: 'logs',
       body: {
         query,
@@ -57,11 +66,13 @@ export async function GET(request: Request) {
       },
     });
 
-    const hits = response.body.hits.hits;
-    const total = response.body.hits.total.value;
+    const hits = response.body?.hits?.hits || [];
+    const total = typeof response.body?.hits?.total === 'number' 
+      ? response.body.hits.total 
+      : response.body?.hits?.total?.value || 0;
 
     // 格式化响应数据
-    const data = hits.map((hit: any) => ({
+    const data = hits.map(hit => ({
       id: hit._id,
       ...hit._source,
     }));
