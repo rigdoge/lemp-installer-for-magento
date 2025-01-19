@@ -8,8 +8,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const publicPaths = ['/login'];
 
 export function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  
   // 检查是否是公开路径
-  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path));
+  const isPublicPath = publicPaths.some(path => pathname.startsWith(path));
 
   // 获取认证 token
   const token = request.cookies.get('auth')?.value;
@@ -26,9 +28,7 @@ export function middleware(request: NextRequest) {
 
   // 如果不是公开路径且没有 token，重定向到登录页
   if (!isPublicPath && !token) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('from', request.nextUrl.pathname);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // 如果不是公开路径且有 token，验证 token
@@ -37,9 +37,7 @@ export function middleware(request: NextRequest) {
       verify(token, JWT_SECRET);
     } catch {
       // token 无效，重定向到登录页
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('from', request.nextUrl.pathname);
-      return NextResponse.redirect(loginUrl);
+      return NextResponse.redirect(new URL('/login', request.url));
     }
   }
 
@@ -55,7 +53,8 @@ export const config = {
      * /_next/static (静态文件)
      * /_next/image (图片)
      * /favicon.ico (网站图标)
+     * /manifest.json (PWA manifest)
      */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico).*)',
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|manifest.json).*)',
   ],
 }; 
