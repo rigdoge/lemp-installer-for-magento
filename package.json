@@ -1,11 +1,11 @@
 {
   "name": "lemp-manager-frontend",
-  "version": "1.2.59",
+  "version": "1.2.60",
   "private": true,
   "scripts": {
-    "dev": "npx next dev -p 3001",
+    "dev": "npx next dev -p 3001 -H 0.0.0.0",
     "build": "npx next build",
-    "start": "npx next start -p 3001"
+    "start": "npx next start -p 3001 -H 0.0.0.0"
   },
   "dependencies": {
     "@emotion/react": "^11.11.3",
