@@ -1,11 +1,5 @@
-'use client';
-
 import type { Metadata } from 'next';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
-import { ThemeProvider } from '@mui/material/styles';
-import { theme } from './theme';
-import ClientOnly from './components/ClientOnly';
-import CssBaseline from '@mui/material/CssBaseline';
+import RootLayoutClient from './RootLayoutClient';
 
 export const metadata: Metadata = {
   title: 'LEMP Manager',
@@ -20,14 +14,9 @@ export default function RootLayout({
   return (
     <html lang="zh">
       <body>
-        <AppRouterCacheProvider>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            <ClientOnly>
-              {children}
-            </ClientOnly>
-          </ThemeProvider>
-        </AppRouterCacheProvider>
+        <RootLayoutClient>
+          {children}
+        </RootLayoutClient>
       </body>
     </html>
   );
