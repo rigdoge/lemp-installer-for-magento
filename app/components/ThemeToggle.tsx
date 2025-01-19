@@ -9,6 +9,10 @@ export default function ThemeToggle() {
   const theme = useTheme();
   const colorMode = useContext(ColorModeContext);
 
+  if (!colorMode) {
+    return null;
+  }
+
   return (
     <IconButton 
       onClick={colorMode.toggleColorMode} 
