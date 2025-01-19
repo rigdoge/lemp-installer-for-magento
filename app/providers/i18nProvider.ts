@@ -4,6 +4,10 @@ import chineseMessages from 'ra-language-chinese';
 
 const translations = {
   ...chineseMessages,
+  ra: {
+    ...chineseMessages.ra,
+    language: 'zh',
+  },
   resources: {
     logs: {
       name: '日志管理',
@@ -41,6 +45,26 @@ const translations = {
         status: '状态',
         version: '版本',
       },
+    },
+  },
+  // 自定义翻译
+  custom: {
+    dashboard: {
+      title: '仪表板',
+      welcome: '欢迎使用 LEMP 管理面板',
+      systemStatus: '系统状态',
+      magentoStatus: 'Magento 状态',
+      serviceStatus: '服务状态',
+    },
+    common: {
+      refresh: '刷新',
+      export: '导出',
+      search: '搜索',
+      filter: '筛选',
+      timeRange: '时间范围',
+      lastMinutes: '最近 {n} 分钟',
+      lastHours: '最近 {n} 小时',
+      lastDays: '最近 {n} 天',
     },
   },
 };
