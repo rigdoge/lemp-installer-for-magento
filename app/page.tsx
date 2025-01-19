@@ -10,6 +10,8 @@ import {
   Button,
   Typography,
   Alert,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import { useAuth } from './contexts/AuthContext';
 
@@ -18,17 +20,34 @@ export default function LoginPage() {
   const { login } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
+      const response = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, rememberMe }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '登录失败');
+      }
+
       await login(username, password);
       router.push('/dashboard');
     } catch (err) {
-      setError('用户名或密码错误');
+      setError(err instanceof Error ? err.message : '登录失败');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,6 +73,7 @@ export default function LoginPage() {
               margin="normal"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
+              disabled={loading}
             />
             <TextField
               fullWidth
@@ -62,6 +82,17 @@ export default function LoginPage() {
               margin="normal"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  disabled={loading}
+                />
+              }
+              label="记住登录状态"
             />
             {error && (
               <Alert severity="error" sx={{ mt: 2 }}>
@@ -73,8 +104,9 @@ export default function LoginPage() {
               variant="contained"
               type="submit"
               sx={{ mt: 3 }}
+              disabled={loading}
             >
-              登录
+              {loading ? '登录中...' : '登录'}
             </Button>
           </form>
         </CardContent>
