@@ -15,6 +15,7 @@ import {
   Assessment as AssessmentIcon,
   MonitorHeart as MonitorHeartIcon,
   Notifications as NotificationsIcon,
+  Build as BuildIcon,
 } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -39,6 +40,7 @@ const menuItems = [
   { text: '系统监控', icon: <MonitorHeartIcon />, path: '/monitoring' },
   { text: '日志管理', icon: <AssessmentIcon />, path: '/logs' },
   { text: '通知中心', icon: <NotificationsIcon />, path: '/notifications' },
+  { text: '部署管理', icon: <BuildIcon />, path: '/deployment' },
 ];
 
 export default function Sidebar({ open }: SidebarProps) {
