@@ -1,13 +1,11 @@
-import { DataProvider } from 'react-admin';
+import { DataProvider, CreateParams, CreateResult, DeleteParams, DeleteResult, RaRecord, Identifier } from 'react-admin';
 
 export const dataProvider: DataProvider = {
   getList: async (resource, params) => {
-    // OpenSearch query implementation
     const { page, perPage } = params.pagination;
     const { field, order } = params.sort;
     const { q, ...filters } = params.filter;
 
-    // TODO: Implement OpenSearch query
     const response = await fetch(`/api/${resource}?page=${page}&perPage=${perPage}`);
     const json = await response.json();
 
@@ -50,7 +48,10 @@ export const dataProvider: DataProvider = {
     };
   },
 
-  create: async (resource, params) => {
+  create: async <RecordType extends RaRecord = any>(
+    resource: string,
+    params: CreateParams<RecordType>
+  ): Promise<CreateResult<RecordType>> => {
     const response = await fetch(`/api/${resource}`, {
       method: 'POST',
       body: JSON.stringify(params.data),
@@ -61,7 +62,7 @@ export const dataProvider: DataProvider = {
     const json = await response.json();
 
     return {
-      data: { ...params.data, id: json.id },
+      data: { ...params.data, id: json.id } as RecordType,
     };
   },
 
@@ -95,13 +96,16 @@ export const dataProvider: DataProvider = {
     };
   },
 
-  delete: async (resource, params) => {
+  delete: async <RecordType extends RaRecord = any>(
+    resource: string,
+    params: DeleteParams<RecordType>
+  ): Promise<DeleteResult<RecordType>> => {
     await fetch(`/api/${resource}/${params.id}`, {
       method: 'DELETE',
     });
 
     return {
-      data: params.previousData,
+      data: params.previousData as RecordType,
     };
   },
 
