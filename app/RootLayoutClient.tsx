@@ -1,13 +1,12 @@
 'use client';
 
 import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
-import { ThemeProvider } from '@mui/material/styles';
-import { theme } from './theme';
-import ClientOnly from './components/ClientOnly';
 import CssBaseline from '@mui/material/CssBaseline';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import { Box, Toolbar } from '@mui/material';
+import { ThemeProvider } from './contexts/ThemeContext';
+import ClientOnly from './components/ClientOnly';
 
 export default function RootLayoutClient({
   children,
@@ -16,7 +15,7 @@ export default function RootLayoutClient({
 }) {
   return (
     <AppRouterCacheProvider>
-      <ThemeProvider theme={theme}>
+      <ThemeProvider>
         <CssBaseline />
         <ClientOnly>
           <Box sx={{ display: 'flex' }}>

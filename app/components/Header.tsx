@@ -2,6 +2,7 @@
 
 import { AppBar, Toolbar, Typography, Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import ThemeToggle from './ThemeToggle';
 
 const drawerWidth = 240;
 
@@ -18,6 +19,7 @@ export default function Header() {
             LEMP Manager
           </Typography>
         </Box>
+        <ThemeToggle />
       </Toolbar>
     </StyledAppBar>
   );
