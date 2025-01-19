@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { hash, compare } from 'bcrypt';
 import { sign, verify } from 'jsonwebtoken';
-import { readFile, writeFile } from 'fs/promises';
+import { readFile, writeFile, mkdir } from 'fs/promises';
 import path from 'path';
+import { existsSync } from 'fs';
 
-const USERS_FILE = path.join(process.cwd(), 'data', 'users.json');
+const DATA_DIR = path.join(process.cwd(), 'data');
+const USERS_FILE = path.join(DATA_DIR, 'users.json');
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 const SALT_ROUNDS = 10;
 
@@ -17,12 +19,22 @@ interface User {
   createdAt: string;
 }
 
+// 确保数据目录存在
+async function ensureDataDir() {
+  if (!existsSync(DATA_DIR)) {
+    console.log('Creating data directory:', DATA_DIR);
+    await mkdir(DATA_DIR, { recursive: true });
+  }
+}
+
 // 读取用户数据
 async function getUsers(): Promise<User[]> {
   try {
+    await ensureDataDir();
     const data = await readFile(USERS_FILE, 'utf8');
     return JSON.parse(data);
   } catch (error) {
+    console.log('Creating default admin user');
     // 如果文件不存在，创建默认管理员账户
     const defaultAdmin = {
       username: 'admin',
@@ -37,6 +49,7 @@ async function getUsers(): Promise<User[]> {
 
 // 保存用户数据
 async function saveUsers(users: User[]) {
+  await ensureDataDir();
   await writeFile(USERS_FILE, JSON.stringify(users, null, 2));
 }
 
