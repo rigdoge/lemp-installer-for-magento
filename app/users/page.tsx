@@ -163,7 +163,7 @@ export default function UsersPage() {
       field: 'createdAt',
       headerName: '创建时间',
       flex: 1,
-      valueFormatter: (params) => {
+      valueFormatter: (params: { value: string }) => {
         return new Date(params.value).toLocaleString();
       },
     },
@@ -171,7 +171,7 @@ export default function UsersPage() {
       field: 'lastLogin',
       headerName: '最后登录',
       flex: 1,
-      valueFormatter: (params) => {
+      valueFormatter: (params: { value: string | undefined }) => {
         return params.value ? new Date(params.value).toLocaleString() : '从未登录';
       },
     },
