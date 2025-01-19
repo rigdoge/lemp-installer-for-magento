@@ -1,17 +1,31 @@
-import { createTheme } from '@mui/material/styles';
-import { blue } from '@mui/material/colors';
+import { defaultTheme } from 'react-admin';
+import { zhCN } from '@mui/material/locale';
 
-const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: blue[700],
+export const theme = {
+  ...defaultTheme,
+  ...zhCN,
+  components: {
+    ...defaultTheme.components,
+    MuiTextField: {
+      defaultProps: {
+        variant: 'outlined',
+        margin: 'normal',
+        fullWidth: true,
+      },
     },
-    background: {
-      default: '#1a1a1a',
-      paper: '#242424',
+    MuiButton: {
+      defaultProps: {
+        variant: 'contained',
+      },
     },
   },
-});
-
-export default theme; 
+  palette: {
+    ...defaultTheme.palette,
+    primary: {
+      main: '#1976d2',
+    },
+    secondary: {
+      main: '#dc004e',
+    },
+  },
+}; 
