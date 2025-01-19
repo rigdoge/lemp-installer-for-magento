@@ -1,12 +1,14 @@
-import type { Metadata } from 'next';
-import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
-import { AuthProvider } from './contexts/AuthContext';
-import ThemeRegistry from './components/ThemeRegistry/ThemeRegistry';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'LEMP Manager',
-  description: 'LEMP stack management interface',
-};
+import { Admin, Resource } from 'react-admin';
+import { ThemeRegistry } from './components/ThemeRegistry/ThemeRegistry';
+import simpleRestProvider from 'ra-data-simple-rest';
+import polyglotI18nProvider from 'ra-i18n-polyglot';
+import chineseMessages from 'ra-language-chinese';
+import authProvider from './providers/authProvider';
+
+const i18nProvider = polyglotI18nProvider(() => chineseMessages, 'zh');
+const dataProvider = simpleRestProvider('/api');
 
 export default function RootLayout({
   children,
@@ -16,13 +18,21 @@ export default function RootLayout({
   return (
     <html lang="zh">
       <body>
-        <AppRouterCacheProvider>
-          <ThemeRegistry>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
-          </ThemeRegistry>
-        </AppRouterCacheProvider>
+        <ThemeRegistry>
+          <Admin 
+            authProvider={authProvider}
+            dataProvider={dataProvider}
+            i18nProvider={i18nProvider}
+            requireAuth
+            layout={props => (
+              <div style={{ height: '100vh' }}>
+                {children}
+              </div>
+            )}
+          >
+            {/* 资源定义 */}
+          </Admin>
+        </ThemeRegistry>
       </body>
     </html>
   );
