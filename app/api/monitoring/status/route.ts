@@ -5,6 +5,8 @@ import { headers } from 'next/headers';
 // "Dynamic server usage" 警告。这是预期的行为，因为我们需要在服务器端
 // 实时检查监控服务的状态。这个警告可以安全地忽略。
 
+export const dynamic = 'force-dynamic';
+
 async function checkEndpoint(url: string): Promise<boolean> {
   try {
     const response = await fetch(url, { 
