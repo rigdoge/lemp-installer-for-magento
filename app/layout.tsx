@@ -8,8 +8,10 @@ import chineseMessages from 'ra-language-chinese';
 import authProvider from './providers/authProvider';
 import { ServiceList, ServiceEdit, ServiceCreate } from './resources/services';
 import SettingsIcon from '@mui/icons-material/Settings';
+import { TranslationMessages } from 'ra-core';
 
-const i18nProvider = polyglotI18nProvider(() => chineseMessages, 'zh');
+const messages: TranslationMessages = chineseMessages;
+const i18nProvider = polyglotI18nProvider(() => messages, 'zh');
 const dataProvider = simpleRestProvider('/api');
 
 export default function RootLayout({

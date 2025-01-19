@@ -1,5 +1,13 @@
 import { AuthProvider } from 'react-admin';
 
+export interface AuthContextType {
+  isAuthenticated: boolean;
+  username: string | null;
+  login: (username: string, password: string, rememberMe?: boolean) => Promise<void>;
+  logout: () => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+}
+
 const authProvider: AuthProvider = {
     // 用户登录
     login: async ({ username, password }) => {
