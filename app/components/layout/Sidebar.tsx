@@ -5,6 +5,7 @@ import StorageIcon from '@mui/icons-material/Storage';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import { Group as GroupIcon } from '@mui/icons-material';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -33,7 +34,12 @@ const menuItems = [
     text: '通知中心',
     icon: <NotificationsIcon />,
     path: '/notifications'
-  }
+  },
+  {
+    text: '用户管理',
+    icon: <GroupIcon />,
+    path: '/users',
+  },
 ];
 
 interface SidebarProps {
