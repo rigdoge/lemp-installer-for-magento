@@ -17,7 +17,7 @@ interface HeaderProps {
 
 export default function Header({ open, onDrawerToggle }: HeaderProps) {
   const theme = useTheme();
-  const { username } = useAuth();
+  const { user } = useAuth();
 
   return (
     <AppBar
@@ -45,7 +45,7 @@ export default function Header({ open, onDrawerToggle }: HeaderProps) {
           LEMP Manager
         </Typography>
         <Typography variant="body1" sx={{ ml: 2 }}>
-          {username}
+          {user?.username}
         </Typography>
       </Toolbar>
     </AppBar>
