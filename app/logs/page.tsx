@@ -22,6 +22,7 @@ import {
 import { DataGrid, GridColDef } from '@mui/x-data-grid';
 
 interface LogEntry {
+  id: number;
   timestamp: string;
   level: string;
   source: string;
@@ -31,14 +32,16 @@ interface LogEntry {
 const logLevels = ['ALL', 'ERROR', 'WARN', 'INFO', 'DEBUG'];
 const logSources = ['nginx', 'php-fpm', 'mysql', 'redis', 'system'];
 
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleString('zh-CN');
+};
+
 const columns: GridColDef[] = [
   {
     field: 'timestamp',
     headerName: '时间',
     width: 200,
-    valueFormatter: (params) => {
-      return new Date(params.value).toLocaleString('zh-CN');
-    },
+    renderCell: (params) => formatDate(params.row.timestamp),
   },
   { field: 'level', headerName: '级别', width: 100 },
   { field: 'source', headerName: '来源', width: 120 },
