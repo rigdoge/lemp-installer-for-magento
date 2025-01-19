@@ -8,9 +8,9 @@ import chineseMessages from 'ra-language-chinese';
 import authProvider from './providers/authProvider';
 import { ServiceList, ServiceEdit, ServiceCreate } from './resources/services';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { TranslationMessages } from 'ra-core';
 
-const messages: TranslationMessages = {
+const i18nProvider = polyglotI18nProvider(() => ({
+  ...chineseMessages,
   ra: {
     ...chineseMessages.ra,
     page: {
@@ -18,10 +18,9 @@ const messages: TranslationMessages = {
       access_denied: '访问被拒绝',
       authentication_error: '认证错误'
     }
-  },
-  ...chineseMessages
-};
-const i18nProvider = polyglotI18nProvider(() => messages, 'zh');
+  }
+}), 'zh');
+
 const dataProvider = simpleRestProvider('/api');
 
 export default function RootLayout({
