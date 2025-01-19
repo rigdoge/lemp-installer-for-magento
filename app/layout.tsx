@@ -7,7 +7,7 @@ import polyglotI18nProvider from 'ra-i18n-polyglot';
 import chineseMessages from 'ra-language-chinese';
 import authProvider from './providers/authProvider';
 import { ServiceList, ServiceEdit, ServiceCreate } from './resources/services';
-import SettingsSystemDaemonIcon from '@mui/icons-material/SettingsSystemDaemon';
+import SettingsIcon from '@mui/icons-material/Settings';
 
 const i18nProvider = polyglotI18nProvider(() => chineseMessages, 'zh');
 const dataProvider = simpleRestProvider('/api');
@@ -37,7 +37,7 @@ export default function RootLayout({
               list={ServiceList}
               edit={ServiceEdit}
               create={ServiceCreate}
-              icon={SettingsSystemDaemonIcon}
+              icon={SettingsIcon}
               options={{ label: '服务管理' }}
             />
           </Admin>
