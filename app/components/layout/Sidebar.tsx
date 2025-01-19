@@ -2,6 +2,9 @@ import React from 'react';
 import { Drawer, List, ListItem, ListItemIcon, ListItemText, useTheme } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import StorageIcon from '@mui/icons-material/Storage';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import MonitorHeartIcon from '@mui/icons-material/MonitorHeart';
+import NotificationsIcon from '@mui/icons-material/Notifications';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -15,6 +18,21 @@ const menuItems = [
     text: 'Magento 站点',
     icon: <StorageIcon />,
     path: '/magento'
+  },
+  {
+    text: '系统监控',
+    icon: <MonitorHeartIcon />,
+    path: '/monitoring'
+  },
+  {
+    text: '日志管理',
+    icon: <AssessmentIcon />,
+    path: '/logs'
+  },
+  {
+    text: '通知中心',
+    icon: <NotificationsIcon />,
+    path: '/notifications'
   }
 ];
 
